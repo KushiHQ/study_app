@@ -32,7 +32,7 @@ export default ({ config }) => ({
 		package: 'ng.kushi.study',
 		adaptiveIcon: {
 			foregroundImage: './assets/adaptive-icon.png',
-			backgroundColor: '#0B0C10'
+			backgroundColor: '#04050C'
 		},
 		edgeToEdgeEnabled: true,
 		predictiveBackGestureEnabled: false,
@@ -73,10 +73,10 @@ export default ({ config }) => ({
 			'expo-splash-screen',
 			{
 				image: './assets/splash-icon.png',
-				imageWidth: 180,
+				imageWidth: 220,
 				resizeMode: 'contain',
-				backgroundColor: '#0B0C10',
-				dark: { image: './assets/splash-icon.png', backgroundColor: '#0B0C10' }
+				backgroundColor: '#04050C',
+				dark: { image: './assets/splash-icon.png', backgroundColor: '#04050C' }
 			}
 		],
 		[

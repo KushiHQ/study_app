@@ -26,6 +26,9 @@
 			},
 			"ios": {
 				"buildConfiguration": "Release"
+			},
+			"env": {
+				"SENTRY_DISABLE_AUTO_UPLOAD": "true"
 			}
 		}
 	},

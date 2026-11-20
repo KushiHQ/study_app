@@ -46,7 +46,7 @@ export default ({ config }) => ({
 	},
 	extra: {
 		router: { origin: false },
-		eas: process.env.EAS_PROJECT_ID ? { projectId: process.env.EAS_PROJECT_ID } : undefined
+		eas: { projectId: process.env.EAS_PROJECT_ID || '30354dfd-3e13-4e11-85ff-1ad8b778e531' }
 	},
 	owner: 'kushi-digital-innovations-ltd',
 	plugins: [

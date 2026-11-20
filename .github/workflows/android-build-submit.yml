@@ -57,8 +57,8 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ hashFiles('package-lock.json') }}
-          restore-keys: gradle-
+          key: gradle-v2-${{ hashFiles('package-lock.json') }}
+          restore-keys: gradle-v2-
 
       - name: Build Android (local)
         timeout-minutes: 90

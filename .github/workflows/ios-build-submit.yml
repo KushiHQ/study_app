@@ -65,6 +65,6 @@ jobs:
 
       - name: Submit to App Store Connect (TestFlight)
         timeout-minutes: 15
+        # Signs in with the App Store Connect API key EAS stores for ng.kushi.study
+        # ([Expo] EAS Submit, key RQ5CRTYTSB), so EXPO_TOKEN is the only secret needed.
         run: eas submit --platform ios --profile production --non-interactive --path "$IPA_PATH"
-        env:
-          EXPO_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.EXPO_APPLE_APP_SPECIFIC_PASSWORD }}

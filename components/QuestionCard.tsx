@@ -1,0 +1,234 @@
+// One question (single, multi, numeric, order), graded on the phone like the
+// web's QuestionCard. Right answers spring with a light tap; wrong ones shake
+// gently and show why.
+import { useEffect, useMemo, useState } from 'react';
+import { Text, TextInput, View } from 'react-native';
+import Animated, { FadeInDown, LinearTransition, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { ArrowDown, ArrowUp, Check, Flag, X } from 'lucide-react-native';
+import type { Question } from '../lib/api/types';
+import { fonts, radius, useTheme, type HueSet } from '../lib/theme';
+import { Html } from './Html';
+import { Button, Press, T, hair } from './ui';
+
+const LETTERS = 'ABCDEFGH';
+const YAY = ['Spot on.', 'Yes, exactly.', 'Nicely done.', 'Correct.', 'That’s it.'];
+const NOPE = ['Not quite, and that’s fine.', 'Close, but not this one.', 'Good try. Here’s why.'];
+
+function shuffle(a: number[]) {
+	const out = [...a];
+	for (let i = out.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[out[i], out[j]] = [out[j], out[i]];
+	}
+	if (out.length > 1 && out.every((v, i) => v === i)) [out[0], out[1]] = [out[1], out[0]];
+	return out;
+}
+
+export function QuestionCard({
+	q,
+	hue,
+	number,
+	onAnswer,
+	onReport,
+	hideWhy
+}: {
+	q: Question;
+	hue: HueSet;
+	number?: string;
+	onAnswer?: (correct: boolean, response: unknown) => void;
+	onReport?: () => void;
+	/** quizzes show explanations at the end */
+	hideWhy?: boolean;
+}) {
+	const t = useTheme();
+	const [picked, setPicked] = useState<number | null>(null);
+	const [chosen, setChosen] = useState<number[]>([]);
+	const [typed, setTyped] = useState('');
+	const [order, setOrder] = useState<number[]>([]);
+	const [done, setDone] = useState(false);
+	const [correct, setCorrect] = useState(false);
+	const shake = useSharedValue(0);
+	const pop = useSharedValue(1);
+	const cardStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }, { scale: pop.value }] }));
+
+	useEffect(() => {
+		setPicked(null);
+		setChosen([]);
+		setTyped('');
+		setDone(false);
+		setCorrect(false);
+		if (q.type === 'order') setOrder(shuffle(q.items.map((_, i) => i)));
+	}, [q.id]);
+
+	const finish = (ok: boolean, response: unknown) => {
+		setDone(true);
+		setCorrect(ok);
+		if (ok) {
+			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+			pop.value = withSequence(withTiming(1.025, { duration: 120 }), withSpring(1, { damping: 8, stiffness: 220 }));
+		} else {
+			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+			shake.value = withSequence(withTiming(-8, { duration: 55 }), withTiming(8, { duration: 55 }), withTiming(-5, { duration: 55 }), withTiming(0, { duration: 55 }));
+		}
+		onAnswer?.(ok, response);
+	};
+
+	const msg = correct ? YAY[(q.id.length + 1) % YAY.length] : NOPE[q.id.length % NOPE.length];
+	const optStyle = (state: 'idle' | 'right' | 'wrong' | 'dim' | 'on') => ({
+		flexDirection: 'row' as const,
+		alignItems: 'center' as const,
+		gap: 12,
+		padding: 14,
+		borderRadius: 16,
+		borderWidth: state === 'idle' || state === 'dim' ? hair : 1.8,
+		borderColor: state === 'right' ? t.success : state === 'wrong' ? t.danger : state === 'on' ? hue.base : t.line2,
+		backgroundColor: state === 'right' ? t.successSoft : state === 'wrong' ? t.dangerSoft : state === 'on' ? hue.wash : t.surface,
+		opacity: state === 'dim' ? 0.55 : 1
+	});
+	const badge = (i: number, state: 'idle' | 'right' | 'wrong' | 'dim' | 'on', square = false) => (
+		<View style={{ width: 30, height: 30, borderRadius: square ? 8 : 15, alignItems: 'center', justifyContent: 'center', backgroundColor: state === 'right' ? t.success : state === 'wrong' ? t.danger : state === 'on' ? hue.base : t.surface2 }}>
+			{state === 'right' ? <Check size={16} color="#fff" /> : state === 'wrong' ? <X size={16} color="#fff" /> : <Text style={{ fontFamily: fonts.readHeavy, color: state === 'on' ? t.onHue : t.fg2 }}>{LETTERS[i]}</Text>}
+		</View>
+	);
+
+	return (
+		<Animated.View style={[{ gap: 12 }, cardStyle]}>
+			<View style={{ flexDirection: 'row', gap: 8 }}>
+				{number ? <Text style={{ fontFamily: fonts.readHeavy, fontSize: 16, lineHeight: 26, color: hue.ink }}>{number}</Text> : null}
+				<View style={{ flex: 1 }}>
+					<Html html={q.prompt} hue={hue} style={{ fontFamily: fonts.readBold, fontSize: 17, lineHeight: 26 }} />
+				</View>
+				{onReport ? (
+					<Press onPress={onReport} hitSlop={10} accessibilityLabel="Report a problem with this question">
+						<Flag size={16} color={t.muted} />
+					</Press>
+				) : null}
+			</View>
+
+			{q.type === 'single' ? (
+				<View style={{ gap: 8 }}>
+					{q.options.map((o, i) => {
+						const st = done ? (i === q.answer ? 'right' : picked === i ? 'wrong' : 'dim') : 'idle';
+						return (
+							<Press key={i} haptic={!done} disabled={done} onPress={() => (setPicked(i), finish(i === q.answer, { choice: i }))} accessibilityRole="button" style={optStyle(st)}>
+								{badge(i, st)}
+								<View style={{ flex: 1 }}>
+									<Html html={o} hue={hue} style={{ fontSize: 16, lineHeight: 23 }} />
+								</View>
+							</Press>
+						);
+					})}
+				</View>
+			) : null}
+
+			{q.type === 'multi' ? (
+				<View style={{ gap: 8 }}>
+					<T v="small">Pick every answer that's right.</T>
+					{q.options.map((o, i) => {
+						const on = chosen.includes(i);
+						const st = done ? (q.answers.includes(i) ? 'right' : on ? 'wrong' : 'dim') : on ? 'on' : 'idle';
+						return (
+							<Press key={i} haptic disabled={done} onPress={() => setChosen(on ? chosen.filter((x) => x !== i) : [...chosen, i].sort((a, b) => a - b))} accessibilityRole="checkbox" accessibilityState={{ checked: on }} style={optStyle(st)}>
+								{badge(i, st, true)}
+								<View style={{ flex: 1 }}>
+									<Html html={o} hue={hue} style={{ fontSize: 16, lineHeight: 23 }} />
+								</View>
+							</Press>
+						);
+					})}
+					{!done ? (
+						<Button
+							kind="hue"
+							hue={hue}
+							title="Check"
+							disabled={!chosen.length}
+							onPress={() => {
+								const want = [...q.answers].sort((a, b) => a - b);
+								finish(want.length === chosen.length && want.every((v, i) => v === chosen[i]), { choices: chosen });
+							}}
+						/>
+					) : null}
+				</View>
+			) : null}
+
+			{q.type === 'numeric' ? (
+				<View style={{ gap: 8 }}>
+					<View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+						<TextInput
+							value={typed}
+							onChangeText={setTyped}
+							editable={!done}
+							keyboardType="numbers-and-punctuation"
+							placeholder="Your answer"
+							placeholderTextColor={t.muted}
+							style={{ flex: 1, height: 52, borderRadius: 14, borderWidth: done ? 1.8 : hair, borderColor: done ? (correct ? t.success : t.danger) : t.line2, backgroundColor: t.surface, paddingHorizontal: 14, fontFamily: fonts.mono, fontSize: 17, color: t.fg }}
+						/>
+						{q.unit ? <T>{q.unit}</T> : null}
+					</View>
+					{!done ? (
+						<Button
+							kind="hue"
+							hue={hue}
+							title="Check"
+							disabled={!typed.trim()}
+							onPress={() => {
+								const v = Number(typed.replace(/,/g, '').trim());
+								if (!Number.isFinite(v)) return;
+								finish(Math.abs(v - q.answer) <= (q.tolerance ?? 0) + 1e-9, { value: v });
+							}}
+						/>
+					) : !correct ? (
+						<T>
+							The answer is <Text style={{ fontFamily: fonts.mono, color: t.fg }}>{q.answer}</Text>
+							{q.unit ? ` ${q.unit}` : ''}.
+						</T>
+					) : null}
+				</View>
+			) : null}
+
+			{q.type === 'order' ? (
+				<View style={{ gap: 8 }}>
+					<T v="small">Put these in the right order. Use the arrows to move them.</T>
+					{order.map((item, pos) => {
+						const st = done ? (item === pos ? 'right' : 'wrong') : 'idle';
+						return (
+							<Animated.View key={item} layout={LinearTransition.springify().damping(16)} style={optStyle(st)}>
+								<Text style={{ fontFamily: fonts.readHeavy, width: 20, color: hue.ink }}>{pos + 1}</Text>
+								<View style={{ flex: 1 }}>
+									<Html html={q.items[item]} hue={hue} style={{ fontSize: 16, lineHeight: 23 }} />
+								</View>
+								{!done ? (
+									<View style={{ gap: 4 }}>
+										<Press haptic onPress={() => move(pos, -1)} disabled={pos === 0} hitSlop={6} accessibilityLabel="Move up" style={{ opacity: pos === 0 ? 0.3 : 1 }}>
+											<ArrowUp size={18} color={t.fg2} />
+										</Press>
+										<Press haptic onPress={() => move(pos, 1)} disabled={pos === order.length - 1} hitSlop={6} accessibilityLabel="Move down" style={{ opacity: pos === order.length - 1 ? 0.3 : 1 }}>
+											<ArrowDown size={18} color={t.fg2} />
+										</Press>
+									</View>
+								) : null}
+							</Animated.View>
+						);
+					})}
+					{!done ? <Button kind="hue" hue={hue} title="Check" onPress={() => finish(order.every((v, i) => v === i), { order })} /> : null}
+				</View>
+			) : null}
+
+			{done && !hideWhy ? (
+				<Animated.View entering={FadeInDown.duration(320)} style={{ backgroundColor: correct ? t.successSoft : hue.wash, borderRadius: 14, padding: 14, gap: 4 }}>
+					<Text style={{ fontFamily: fonts.readHeavy, fontSize: 15, color: correct ? t.success : t.fg }}>{msg}</Text>
+					<Html html={q.why} hue={hue} style={{ fontSize: 15, lineHeight: 23 }} />
+				</Animated.View>
+			) : null}
+		</Animated.View>
+	);
+
+	function move(pos: number, by: number) {
+		const to = pos + by;
+		if (to < 0 || to >= order.length) return;
+		const next = [...order];
+		[next[pos], next[to]] = [next[to], next[pos]];
+		setOrder(next);
+	}
+}

@@ -1,0 +1,70 @@
+name: Build and Submit iOS
+
+# Same shape as KushiHQ/expo-app: a local EAS build on a macOS runner, then
+# upload to App Store Connect (TestFlight). Runs by hand, or on a push to main
+# whose commit message contains [ios]. Needs the iOS signing credentials to be
+# on EAS already (made by the first interactive `eas build -p ios`).
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[ios]')
+    runs-on: macos-15
+    environment: production
+    env:
+      LANG: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
+      SENTRY_DISABLE_AUTO_UPLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+
+      - run: npm ci
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Create .env file
+        run: echo '${{ secrets.ENV_FILE }}' > .env
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/CocoaPods
+          key: cocoapods-${{ hashFiles('package-lock.json') }}
+          restore-keys: cocoapods-
+
+      - name: Build iOS (local)
+        run: |
+          set -o pipefail
+          eas build --platform ios --profile production --local --non-interactive 2>&1 | tee /tmp/eas-output.txt || true
+          IPA_PATH=$(grep -oE '[^[:space:]]+\.ipa' /tmp/eas-output.txt | tail -1)
+          if [ -z "$IPA_PATH" ] || [ ! -f "$IPA_PATH" ]; then echo "Could not find the built .ipa"; exit 1; fi
+          echo "IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
+
+      - name: Save build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build
+          path: ${{ env.IPA_PATH }}
+          retention-days: 14
+
+      - name: Submit to App Store Connect (TestFlight)
+        timeout-minutes: 15
+        run: eas submit --platform ios --profile production --non-interactive --path "$IPA_PATH"
+        env:
+          EXPO_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.EXPO_APPLE_APP_SPECIFIC_PASSWORD }}

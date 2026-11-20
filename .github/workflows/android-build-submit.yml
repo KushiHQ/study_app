@@ -1,0 +1,84 @@
+name: Build and Submit Android
+
+# Same shape as KushiHQ/expo-app: a local EAS build on the runner, then upload
+# to Google Play (internal testing, draft). Runs by hand, or on a push to main
+# whose commit message contains [android].
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: play-store-upload
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[android]')
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      LANG: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
+      SENTRY_DISABLE_AUTO_UPLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost /usr/share/swift /usr/local/share/powershell /opt/hostedtoolcache/CodeQL 2>/dev/null || true
+          docker image prune -af 2>/dev/null || true
+          df -h /
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+
+      - run: npm ci
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Create .env file
+        run: echo '${{ secrets.ENV_FILE }}' > .env
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('package-lock.json') }}
+          restore-keys: gradle-
+
+      - name: Build Android (local)
+        timeout-minutes: 90
+        run: |
+          set -o pipefail
+          eas build --platform android --profile production --local --non-interactive 2>&1 | tee /tmp/eas-output.txt || true
+          AAB_PATH=$(grep -oE '[^[:space:]]+\.aab' /tmp/eas-output.txt | tail -1)
+          if [ -z "$AAB_PATH" ] || [ ! -f "$AAB_PATH" ]; then echo "Could not find the built .aab"; exit 1; fi
+          echo "AAB_PATH=$AAB_PATH" >> "$GITHUB_ENV"
+
+      # Kept so a failed upload (or the very first manual Play upload) can use it.
+      - name: Save build
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build
+          path: ${{ env.AAB_PATH }}
+          retention-days: 14
+
+      - name: Decode Google Play key
+        run: echo "${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_BASE64 }}" | base64 --decode > google-play-key.json
+
+      - name: Submit to Play Store
+        run: eas submit --platform android --profile production --non-interactive --path "$AAB_PATH"

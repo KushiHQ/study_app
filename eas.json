@@ -11,19 +11,35 @@
 		"preview": {
 			"distribution": "internal",
 			"node": "22.14.0",
-			"env": { "SENTRY_DISABLE_AUTO_UPLOAD": "true" },
-			"android": { "buildType": "apk" }
+			"env": {
+				"SENTRY_DISABLE_AUTO_UPLOAD": "true"
+			},
+			"android": {
+				"buildType": "apk"
+			}
 		},
 		"production": {
 			"node": "22.14.0",
 			"autoIncrement": true,
-			"android": { "buildType": "app-bundle" },
-			"ios": { "buildConfiguration": "Release" }
+			"android": {
+				"buildType": "app-bundle"
+			},
+			"ios": {
+				"buildConfiguration": "Release"
+			}
 		}
 	},
 	"submit": {
 		"production": {
-			"ios": { "appleTeamId": "63GVNP37V2" }
+			"android": {
+				"serviceAccountKeyPath": "./google-play-key.json",
+				"track": "internal",
+				"releaseStatus": "draft"
+			},
+			"ios": {
+				"appleId": "ezkielvictor2700@gmail.com",
+				"appleTeamId": "63GVNP37V2"
+			}
 		}
 	}
 }

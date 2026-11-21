@@ -12,6 +12,7 @@ import { useSession } from '../../lib/session';
 import { fonts, radius, useTheme } from '../../lib/theme';
 import { Button, Chip, ErrorBox, Press, Reveal, T, hair } from '../../components/ui';
 import { CourseCard } from '../../components/CourseCard';
+import { LoadingDots } from '../../components/LoadingDots';
 
 export default function Courses() {
 	const t = useTheme();
@@ -98,7 +99,7 @@ export default function Courses() {
 			renderItem={({ item }) => <CourseCard card={item} />}
 			ListEmptyComponent={
 				fetching || searching ? (
-					<T v="small">Loading…</T>
+					<LoadingDots label="Loading courses" />
 				) : (
 					<View style={{ gap: 6, paddingVertical: 20 }}>
 						<T v="h3">No courses found</T>

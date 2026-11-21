@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, BookOpen, Check, GraduationCap, Layers, SquareCh
 import { AccountField } from '../components/AccountPage';
 import { CourseHalo } from '../components/CourseHalo';
 import { CourseIcon } from '../components/CourseIcon';
+import { LoadingDots } from '../components/LoadingDots';
 import { Button, Card, Chip, ErrorBox, Press, Reveal, Screen, T, hair } from '../components/ui';
 import { gql, errorText } from '../lib/api/client';
 import { CATALOGUE, COURSE, LEVELS_FOR, UPDATE_PROFILE } from '../lib/api/queries';
@@ -198,7 +199,7 @@ export default function Onboarding() {
 							<T>We’ll open a lesson you can start now.</T>
 						</Reveal>
 						{matches.error ? <ErrorBox message={errorText(matches.error)} onRetry={() => loadCourses({ requestPolicy: 'network-only' })} /> : null}
-						{matches.fetching ? <T v="small">Finding your courses…</T> : null}
+						{matches.fetching ? <LoadingDots label="Finding your courses" /> : null}
 						{matchedCourses.map((item) => <CourseChoice key={item.slug} item={item} selected={course === item.slug} disabled={busy} onPress={() => setCourse(item.slug)} />)}
 						{matches.data && !matches.fetching && !matchedCourses.length ? (
 							<Card style={{ gap: 10 }}>

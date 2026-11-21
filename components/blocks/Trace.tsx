@@ -4,8 +4,8 @@
 // glow in the course hue, done ones turn green, dimmed ones fade, and named
 // pointers ride under their cells. Trees/heaps are drawn as trees; graphs use
 // the pack's node positions; code traces light the running line.
-import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollView, Text, View } from 'react-native';
 import Animated, { FadeIn, LinearTransition, ZoomIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle, Line, Text as SText } from 'react-native-svg';
@@ -32,35 +32,44 @@ function keyed(v: string[]) {
 	});
 }
 
-export function Trace({ block, hue }: { block: TraceBlock; hue: HueSet }) {
+export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue: HueSet; width: number; autoplay?: boolean }) {
 	const t = useTheme();
 	const states = block.states;
 	const [cur, setCur] = useState(0);
 	const [playing, setPlaying] = useState(false);
+	const interacted = useRef(false);
 	const s = states[Math.min(cur, states.length - 1)];
+
+	useEffect(() => {
+		if (!autoplay || interacted.current) return;
+		interacted.current = true;
+		setPlaying(true);
+	}, [autoplay]);
 
 	useEffect(() => {
 		if (!playing) return;
 		if (cur >= states.length - 1) return setPlaying(false);
 		const id = setTimeout(() => setCur((c) => c + 1), dur(s));
 		return () => clearTimeout(id);
-	}, [playing, cur]);
+	}, [playing, cur, s, states.length]);
 
 	const go = (n: number) => {
+		interacted.current = true;
 		setPlaying(false);
 		setCur(Math.max(0, Math.min(states.length - 1, n)));
 		Haptics.selectionAsync().catch(() => {});
 	};
 
 	const kind = block.kind;
+	const graphWidth = Math.max(1, width - 28 - 2 * hair);
 	return (
 		<View style={{ backgroundColor: t.surface, borderRadius: radius.md, borderWidth: hair, borderColor: t.line, padding: 14, gap: 12 }}>
 			<View>
 				<Eye hue={hue}>Watch it run</Eye>
 				<Html html={block.title} hue={hue} style={{ fontFamily: fonts.serif, fontSize: 18, lineHeight: 24 }} />
 			</View>
-			{kind === 'tree' || kind === 'heap' ? <TreeView s={s} hue={hue} t={t} heap={kind === 'heap'} /> : null}
-			{kind === 'graph' && block.graph ? <GraphView g={block.graph} s={s} hue={hue} t={t} /> : null}
+			{kind === 'tree' || kind === 'heap' ? <TreeView s={s} hue={hue} t={t} width={graphWidth} heap={kind === 'heap'} /> : null}
+			{kind === 'graph' && block.graph ? <GraphView g={block.graph} s={s} hue={hue} t={t} width={graphWidth} /> : null}
 			{kind === 'code' ? <CodeView block={block} s={s} hue={hue} t={t} /> : null}
 			{kind !== 'tree' && kind !== 'graph' && kind !== 'code' ? <Cells s={s} kind={kind} hue={hue} t={t} vLabel={block.vLabel} /> : null}
 			{s.out != null && s.out !== '' ? (
@@ -79,6 +88,7 @@ export function Trace({ block, hue }: { block: TraceBlock; hue: HueSet }) {
 				</Round>
 				<Round
 					onPress={() => {
+						interacted.current = true;
 						if (playing) return setPlaying(false);
 						if (cur >= states.length - 1) setCur(0);
 						setPlaying(true);
@@ -149,11 +159,9 @@ function Cells({ s, kind, hue, t, vLabel }: { s: TraceState; kind: string; hue: 
 	);
 }
 
-function TreeView({ s, hue, t, heap }: { s: TraceState; hue: HueSet; t: Palette; heap: boolean }) {
-	const win = useWindowDimensions();
+function TreeView({ s, hue, t, width: W, heap }: { s: TraceState; hue: HueSet; t: Palette; width: number; heap: boolean }) {
 	const n = s.v.length;
 	const depth = Math.max(1, Math.ceil(Math.log2(n + 1)));
-	const W = win.width - 36 - 30;
 	const H = depth * 64 + 10;
 	const pos = (i: number) => {
 		const d = Math.floor(Math.log2(i + 1));
@@ -184,9 +192,7 @@ function TreeView({ s, hue, t, heap }: { s: TraceState; hue: HueSet; t: Palette;
 	);
 }
 
-function GraphView({ g, s, hue, t }: { g: NonNullable<TraceBlock['graph']>; s: TraceState; hue: HueSet; t: Palette }) {
-	const win = useWindowDimensions();
-	const W = win.width - 36 - 30;
+function GraphView({ g, s, hue, t, width: W }: { g: NonNullable<TraceBlock['graph']>; s: TraceState; hue: HueSet; t: Palette; width: number }) {
 	const xs = g.nodes.map((n, i) => n.x ?? (i % 4) * 100);
 	const ys = g.nodes.map((n, i) => n.y ?? Math.floor(i / 4) * 100);
 	const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];

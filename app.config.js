@@ -54,6 +54,7 @@ export default ({ config }) => ({
 	},
 	owner: 'kushi-digital-innovations-ltd',
 	plugins: [
+		'./plugins/with-android-device-compatibility.cjs',
 		'expo-router',
 		'expo-font',
 		'expo-sqlite',

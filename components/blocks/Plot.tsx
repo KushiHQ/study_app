@@ -2,7 +2,7 @@
 // Formulas arrive already sampled as points. Drag a finger across the graph to
 // read values off each series at that x.
 import { useMemo, useState } from 'react';
-import { View, Text, useWindowDimensions, type GestureResponderEvent } from 'react-native';
+import { View, Text, type GestureResponderEvent } from 'react-native';
 import Svg, { Circle, G, Line, Path, Rect, Text as SText } from 'react-native-svg';
 import type { PlotBlock } from '../../lib/api/types';
 import { fonts, radius, useTheme, type Hue, type HueSet } from '../../lib/theme';
@@ -12,10 +12,9 @@ import { Eye } from './Blocks';
 
 const PAD = { l: 40, r: 12, t: 12, b: 34 };
 
-export function Plot({ block, hue }: { block: PlotBlock; hue: HueSet }) {
+export function Plot({ block, hue, width }: { block: PlotBlock; hue: HueSet; width: number }) {
 	const t = useTheme();
-	const win = useWindowDimensions();
-	const W = win.width - 36 - 24;
+	const W = Math.max(1, width - 24 - 2 * hair);
 	const H = Math.round(W * 0.68);
 	const { x, y, series, marks = [], categories } = block;
 	const [probe, setProbe] = useState<number | null>(null);

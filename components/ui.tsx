@@ -19,6 +19,7 @@ import Animated, { Easing, FadeInDown, ReduceMotion, useAnimatedStyle, useShared
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts, radius, useTheme, type HueSet } from '../lib/theme';
+import { LoadingDots } from './LoadingDots';
 
 type V = 'display' | 'title' | 'h2' | 'h3' | 'body' | 'bodyStrong' | 'small' | 'label' | 'micro' | 'read' | 'serif';
 
@@ -210,9 +211,8 @@ export function Eyebrow({ children, color }: { children: ReactNode; color?: stri
 export function Loading({ label }: { label?: string }) {
 	const t = useTheme();
 	return (
-		<View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, gap: 12, backgroundColor: t.bg }}>
-			<ActivityIndicator color={t.amber} size="large" />
-			{label ? <T v="small">{label}</T> : null}
+		<View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: t.bg }}>
+			<LoadingDots label={label} />
 		</View>
 	);
 }

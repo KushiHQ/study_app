@@ -14,6 +14,7 @@ import { daysLeft } from '../../lib/study/trial';
 import { useProgress } from '../../lib/progress';
 import { alpha, radius, useTheme, useTint } from '../../lib/theme';
 import { Button, Card, ErrorBox, Meter, Press, Reveal, Screen, T, hair } from '../../components/ui';
+import { LoadingDots } from '../../components/LoadingDots';
 import { CourseCard } from '../../components/CourseCard';
 import { CourseHalo } from '../../components/CourseHalo';
 
@@ -68,7 +69,7 @@ export default function TodayScreen() {
 				<T v="display" accessibilityRole="header">{greeting()}{firstName ? `, ${firstName}` : ''}.</T>
 			</Reveal>
 			{error && !data ? <ErrorBox message={errorText(error)} onRetry={() => refetch({ requestPolicy: 'network-only' })} /> : null}
-			{fetching && !data ? <T v="small">Loading your study plan…</T> : null}
+			{fetching && !data ? <LoadingDots label="Loading your study plan" /> : null}
 			{data ? (
 				<Reveal follow>
 					<Card style={{ padding: 19, marginTop: firstCourse ? 10 : 0, backgroundColor: leadBackground, borderColor: alpha(leadColor, 0.32), gap: 12 }}>

@@ -2,7 +2,7 @@
 // player (play, back, next) that shows a change step by step. Before the student
 // starts, the finished picture shows (same rules as the web's Diagram.svelte).
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, useWindowDimensions } from 'react-native';
+import { View, Text } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react-native';
@@ -13,15 +13,22 @@ import { SvgTree } from '../SvgTree';
 
 type Note = { title: string; html: string };
 
-export function Diagram({ svg, caption, parts = [], steps = [], hue }: { svg: string; caption: string; parts?: (Note & { id: string })[]; steps?: Note[]; hue: HueSet }) {
+export function Diagram({ svg, caption, parts = [], steps = [], hue, width, autoplay }: { svg: string; caption: string; parts?: (Note & { id: string })[]; steps?: Note[]; hue: HueSet; width: number; autoplay?: boolean }) {
 	const t = useTheme();
-	const win = useWindowDimensions();
 	const byId = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts]);
 	const [active, setActive] = useState<string | null>(null);
 	const [cur, setCur] = useState(-1);
 	const [playing, setPlaying] = useState(false);
+	const interacted = useRef(false);
 	const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 	const last = steps.length - 1;
+
+	useEffect(() => {
+		if (!autoplay || interacted.current) return;
+		interacted.current = true;
+		setCur(0);
+		setPlaying(last > 0);
+	}, [autoplay, last]);
 
 	useEffect(() => {
 		if (!playing) return;
@@ -34,6 +41,7 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue }: { svg: st
 	}, [playing, cur, last]);
 
 	const go = (n: number) => {
+		interacted.current = true;
 		setPlaying(false);
 		setCur(Math.max(0, Math.min(last, n)));
 		Haptics.selectionAsync().catch(() => {});
@@ -47,7 +55,7 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue }: { svg: st
 				<SvgTree
 					svg={svg}
 					hue={hue}
-					maxWidth={win.width - 36 - 24}
+					maxWidth={Math.max(1, width - 24 - 2 * hair)}
 					step={steps.length ? { cur, last } : undefined}
 					activePart={active}
 					onPart={
@@ -79,6 +87,7 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue }: { svg: st
 							strong
 							hue={hue}
 							onPress={() => {
+								interacted.current = true;
 								if (playing) return setPlaying(false);
 								if (cur < 0 || cur >= last) setCur(0);
 								setPlaying(true);

@@ -2,7 +2,7 @@
 // read about that part. Arrows, lines and labels are drawn over the picture in
 // the picture's own pixels. Figures with steps reveal spots and marks in turn.
 import { useMemo, useState } from 'react';
-import { Text, View, useWindowDimensions } from 'react-native';
+import { Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -15,14 +15,13 @@ import { SmallBtn } from './Blocks';
 
 type FigureBlock = Extract<Block, { type: 'figure' }>;
 
-export function Figure({ block, hue }: { block: FigureBlock; hue: HueSet }) {
+export function Figure({ block, hue, width }: { block: FigureBlock; hue: HueSet; width: number }) {
 	const t = useTheme();
-	const win = useWindowDimensions();
 	const { image, spots, steps = [], marks = [], caption } = block;
 	const [active, setActive] = useState<number | null>(null);
 	const [cur, setCur] = useState(-1); // -1: everything shown
 	const [failed, setFailed] = useState(false);
-	const w = win.width - 36 - 2;
+	const w = Math.max(1, width - 2 * hair);
 	const scale = w / (image.width || 1);
 	const h = (image.height || 1) * scale;
 	const visible = (step?: number) => cur < 0 || step == null || step <= cur;

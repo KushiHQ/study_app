@@ -57,7 +57,7 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 
 	// ---- reading progress
 	const scroll = useRef<ComponentRef<typeof Animated.ScrollView>>(null);
-	const viewportHeight = useRef(0);
+	const viewportHeight = useSharedValue(0);
 	const scrollY = useSharedValue(0);
 	const maxY = useSharedValue(1);
 	const onScroll = useAnimatedScrollHandler((e) => {
@@ -70,7 +70,7 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 		const content = reader?.getInnerViewNode();
 		if (!reader || !content) return;
 		step.measureLayout(content, (_x, top, _width, height) => {
-			const viewport = viewportHeight.current;
+			const viewport = viewportHeight.get();
 			if (viewport <= 0) return;
 			const currentY = scrollY.get();
 			const padding = 12;
@@ -178,7 +178,7 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 					)}
 				</View>
 			) : (
-				<Animated.ScrollView ref={scroll} onLayout={({ nativeEvent }) => { viewportHeight.current = nativeEvent.layout.height; }}
+				<Animated.ScrollView ref={scroll} onLayout={({ nativeEvent }) => viewportHeight.set(nativeEvent.layout.height)}
 					onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 30, paddingBottom: insets.bottom + 36, gap: 26 }}>
 					<Reveal style={{ gap: 10 }}>
 						<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -203,7 +203,7 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 						</Reveal>
 					) : null}
 
-					<Blocks blocks={lesson.blocks} hue={hue} onStepReveal={revealStep} onReport={(blockKey, what) => setReport({ courseSlug: slug, lessonId: id, blockKey, what })} />
+					<Blocks blocks={lesson.blocks} hue={hue} viewport={{ scrollY, height: viewportHeight }} onStepReveal={revealStep} onReport={(blockKey, what) => setReport({ courseSlug: slug, lessonId: id, blockKey, what })} />
 
 					{hasRecap ? (
 						<View style={{ backgroundColor: hue.wash, borderRadius: radius.md, padding: 18, gap: 10 }}>

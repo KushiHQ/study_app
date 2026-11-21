@@ -1,7 +1,7 @@
 // One lesson block → one native view (study_web_app src/lib/ui/blocks/Blocks.svelte).
 import { memo, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import Animated, { Easing, FadeInDown, ReduceMotion, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, FadeInDown, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { Copy, Check, Quote, ChevronRight, RotateCcw, Puzzle } from 'lucide-react-native';
@@ -16,22 +16,37 @@ import { Diagram } from './Diagram';
 import { Figure } from './Figure';
 import { Trace } from './Trace';
 import { Plot } from './Plot';
+import { VisiblePlayback, type PlaybackViewport } from './VisiblePlayback';
 
 type RevealStep = (step: View) => void;
 
-export const Blocks = memo(function Blocks({ blocks, hue, onReport, onStepReveal }: { blocks: Block[]; hue: HueSet; onReport?: (key: string, what: string) => void; onStepReveal?: RevealStep }) {
+export const Blocks = memo(function Blocks({ blocks, hue, viewport, onReport, onStepReveal }: { blocks: Block[]; hue: HueSet; viewport: PlaybackViewport; onReport?: (key: string, what: string) => void; onStepReveal?: RevealStep }) {
+	const contentTop = useSharedValue<number | null>(null);
+	const [width, setWidth] = useState(0);
 	return (
-		<View style={{ gap: 22 }}>
-			{blocks.map((b, i) => (
-				<BlockView key={b.key ?? i} b={b} hue={hue} onStepReveal={onStepReveal} onLongPress={onReport && b.type !== 'heading' ? () => onReport(b.key ?? `#${i + 1}`, KIND[b.type] ?? 'this part') : undefined} />
-			))}
+		<View style={{ gap: 22 }} onLayout={({ nativeEvent }) => {
+			contentTop.set(nativeEvent.layout.y);
+			setWidth(nativeEvent.layout.width);
+		}}>
+			{blocks.map((b, i) => {
+				const key = b.key ?? i;
+				const onLongPress = onReport && b.type !== 'heading' ? () => onReport(b.key ?? `#${i + 1}`, KIND[b.type] ?? 'this part') : undefined;
+				if ((b.type === 'trace' && b.states.length > 1) || (b.type === 'diagram' && b.steps?.length)) {
+					return (
+						<VisiblePlayback key={key} viewport={viewport} contentTop={contentTop} diagram={b.type === 'diagram'}>
+							{(autoplay) => <BlockView b={b} hue={hue} width={width} autoplay={autoplay} onLongPress={onLongPress} />}
+						</VisiblePlayback>
+					);
+				}
+				return <BlockView key={key} b={b} hue={hue} width={width} onStepReveal={onStepReveal} onLongPress={onLongPress} />;
+			})}
 		</View>
 	);
 });
 
 export const KIND: Record<string, string> = { text: 'a paragraph', analogy: 'the analogy', bigidea: 'the big idea', steps: 'the worked example', compare: 'the table', diagram: 'the diagram', figure: 'the picture', formula: 'the formula', code: 'the code', think: 'the think-about-it question', mnemonic: 'the memory trick', story: 'the story', pitfall: 'the warning', widget: 'the interactive piece', trace: 'the walk-through', plot: 'the graph' };
 
-function BlockView({ b, hue, onLongPress, onStepReveal }: { b: Block; hue: HueSet; onLongPress?: () => void; onStepReveal?: RevealStep }) {
+function BlockView({ b, hue, width, autoplay, onLongPress, onStepReveal }: { b: Block; hue: HueSet; width: number; autoplay?: boolean; onLongPress?: () => void; onStepReveal?: RevealStep }) {
 	const t = useTheme();
 	const body = (() => {
 		switch (b.type) {
@@ -71,13 +86,13 @@ function BlockView({ b, hue, onLongPress, onStepReveal }: { b: Block; hue: HueSe
 			case 'think':
 				return <Think prompt={b.prompt} answer={b.answer} hue={hue} />;
 			case 'diagram':
-				return <Diagram svg={b.svg} caption={b.caption} parts={b.parts} steps={b.steps} hue={hue} />;
+				return width > 0 ? <Diagram svg={b.svg} caption={b.caption} parts={b.parts} steps={b.steps} hue={hue} width={width} autoplay={autoplay} /> : null;
 			case 'figure':
-				return <Figure block={b} hue={hue} />;
+				return width > 0 ? <Figure block={b} hue={hue} width={width} /> : null;
 			case 'trace':
-				return <Trace block={b} hue={hue} />;
+				return width > 0 ? <Trace block={b} hue={hue} width={width} autoplay={autoplay} /> : null;
 			case 'plot':
-				return <Plot block={b} hue={hue} />;
+				return width > 0 ? <Plot block={b} hue={hue} width={width} /> : null;
 			case 'widget':
 				return <Widget kind={b.kind} title={b.title} config={b.config} caption={b.caption} hue={hue} />;
 			default:

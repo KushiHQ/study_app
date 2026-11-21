@@ -2,7 +2,6 @@
 import { useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import Animated, { FadeInRight, FadeOutLeft, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
@@ -21,8 +20,6 @@ export default function EmailSignIn() {
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState('');
 	const codeRef = useRef<TextInput>(null);
-	const shake = useSharedValue(0);
-	const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }] }));
 
 	const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
@@ -51,7 +48,6 @@ export default function EmailSignIn() {
 		} catch (e) {
 			setError(errorText(e));
 			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-			shake.value = withSequence(withTiming(-10, { duration: 50 }), withTiming(10, { duration: 50 }), withTiming(-6, { duration: 50 }), withTiming(0, { duration: 50 }));
 			setCode('');
 		} finally {
 			setBusy(false);
@@ -77,9 +73,9 @@ export default function EmailSignIn() {
 					<ArrowLeft size={24} color={t.fg} />
 				</Press>
 				{step === 'email' ? (
-					<Animated.View key="email" entering={FadeInRight} exiting={FadeOutLeft} style={{ gap: 14, marginTop: 24 }}>
-						<T v="title">What's your email?</T>
-						<T>We'll send you a 6-digit code. No password to remember.</T>
+					<View style={{ gap: 14, marginTop: 24 }}>
+						<T v="title">What’s your email?</T>
+						<T>We’ll email you a six-digit sign-in code.</T>
 						<TextInput
 							style={input}
 							value={email}
@@ -96,14 +92,14 @@ export default function EmailSignIn() {
 						/>
 						{error ? <T color={t.danger}>{error}</T> : null}
 						<Button title="Send my code" onPress={send} busy={busy} disabled={!valid} />
-					</Animated.View>
+					</View>
 				) : (
-					<Animated.View key="code" entering={FadeInRight} exiting={FadeOutLeft} style={{ gap: 14, marginTop: 24 }}>
+					<View style={{ gap: 14, marginTop: 24 }}>
 						<T v="title">Check your email</T>
 						<T>
 							We sent a code to <Text style={{ fontFamily: fonts.bodySemi, color: t.fg }}>{email.trim()}</Text>. It works for 10 minutes.
 						</T>
-						<Animated.View style={shakeStyle}>
+						<View>
 							<Pressable onPress={() => codeRef.current?.focus()} style={{ flexDirection: 'row', gap: 8, justifyContent: 'space-between' }}>
 								{Array.from({ length: 6 }).map((_, i) => (
 									<View
@@ -123,7 +119,7 @@ export default function EmailSignIn() {
 									</View>
 								))}
 							</Pressable>
-						</Animated.View>
+						</View>
 						<TextInput
 							ref={codeRef}
 							value={code}
@@ -141,7 +137,7 @@ export default function EmailSignIn() {
 						{error ? <T color={t.danger}>{error}</T> : null}
 						<Button title="Sign in" onPress={() => verify()} busy={busy} disabled={code.length !== 6} />
 						<Button kind="ghost" title="Send a new code" onPress={send} disabled={busy} />
-					</Animated.View>
+					</View>
 				)}
 			</View>
 		</KeyboardAvoidingView>

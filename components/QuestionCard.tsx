@@ -1,19 +1,15 @@
-// One question (single, multi, numeric, order), graded on the phone like the
-// web's QuestionCard. Right answers spring with a light tap; wrong ones shake
-// gently and show why.
-import { useEffect, useMemo, useState } from 'react';
+// One question, graded locally using the same response format as the website.
+import { useEffect, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
-import Animated, { FadeInDown, LinearTransition, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { ArrowDown, ArrowUp, Check, Flag, X } from 'lucide-react-native';
 import type { Question } from '../lib/api/types';
-import { fonts, radius, useTheme, type HueSet } from '../lib/theme';
+import { fonts, useTheme, type HueSet } from '../lib/theme';
 import { Html } from './Html';
 import { Button, Press, T, hair } from './ui';
 
 const LETTERS = 'ABCDEFGH';
-const YAY = ['Spot on.', 'Yes, exactly.', 'Nicely done.', 'Correct.', 'That’s it.'];
-const NOPE = ['Not quite, and that’s fine.', 'Close, but not this one.', 'Good try. Here’s why.'];
 
 function shuffle(a: number[]) {
 	const out = [...a];
@@ -48,9 +44,6 @@ export function QuestionCard({
 	const [order, setOrder] = useState<number[]>([]);
 	const [done, setDone] = useState(false);
 	const [correct, setCorrect] = useState(false);
-	const shake = useSharedValue(0);
-	const pop = useSharedValue(1);
-	const cardStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }, { scale: pop.value }] }));
 
 	useEffect(() => {
 		setPicked(null);
@@ -66,15 +59,13 @@ export function QuestionCard({
 		setCorrect(ok);
 		if (ok) {
 			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-			pop.value = withSequence(withTiming(1.025, { duration: 120 }), withSpring(1, { damping: 8, stiffness: 220 }));
 		} else {
 			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-			shake.value = withSequence(withTiming(-8, { duration: 55 }), withTiming(8, { duration: 55 }), withTiming(-5, { duration: 55 }), withTiming(0, { duration: 55 }));
 		}
 		onAnswer?.(ok, response);
 	};
 
-	const msg = correct ? YAY[(q.id.length + 1) % YAY.length] : NOPE[q.id.length % NOPE.length];
+	const msg = correct ? 'Correct' : 'Incorrect';
 	const optStyle = (state: 'idle' | 'right' | 'wrong' | 'dim' | 'on') => ({
 		flexDirection: 'row' as const,
 		alignItems: 'center' as const,
@@ -93,7 +84,7 @@ export function QuestionCard({
 	);
 
 	return (
-		<Animated.View style={[{ gap: 12 }, cardStyle]}>
+		<View style={{ gap: 12 }}>
 			<View style={{ flexDirection: 'row', gap: 8 }}>
 				{number ? <Text style={{ fontFamily: fonts.readHeavy, fontSize: 16, lineHeight: 26, color: hue.ink }}>{number}</Text> : null}
 				<View style={{ flex: 1 }}>
@@ -124,7 +115,7 @@ export function QuestionCard({
 
 			{q.type === 'multi' ? (
 				<View style={{ gap: 8 }}>
-					<T v="small">Pick every answer that's right.</T>
+					<T v="small">Select all correct answers.</T>
 					{q.options.map((o, i) => {
 						const on = chosen.includes(i);
 						const st = done ? (q.answers.includes(i) ? 'right' : on ? 'wrong' : 'dim') : on ? 'on' : 'idle';
@@ -193,7 +184,7 @@ export function QuestionCard({
 					{order.map((item, pos) => {
 						const st = done ? (item === pos ? 'right' : 'wrong') : 'idle';
 						return (
-							<Animated.View key={item} layout={LinearTransition.springify().damping(16)} style={optStyle(st)}>
+							<Animated.View key={item} layout={LinearTransition.duration(140)} style={optStyle(st)}>
 								<Text style={{ fontFamily: fonts.readHeavy, width: 20, color: hue.ink }}>{pos + 1}</Text>
 								<View style={{ flex: 1 }}>
 									<Html html={q.items[item]} hue={hue} style={{ fontSize: 16, lineHeight: 23 }} />
@@ -216,12 +207,12 @@ export function QuestionCard({
 			) : null}
 
 			{done && !hideWhy ? (
-				<Animated.View entering={FadeInDown.duration(320)} style={{ backgroundColor: correct ? t.successSoft : hue.wash, borderRadius: 14, padding: 14, gap: 4 }}>
+				<Animated.View entering={FadeIn.duration(160)} style={{ backgroundColor: correct ? t.successSoft : hue.wash, borderRadius: 14, padding: 14, gap: 4 }}>
 					<Text style={{ fontFamily: fonts.readHeavy, fontSize: 15, color: correct ? t.success : t.fg }}>{msg}</Text>
 					<Html html={q.why} hue={hue} style={{ fontSize: 15, lineHeight: 23 }} />
 				</Animated.View>
 			) : null}
-		</Animated.View>
+		</View>
 	);
 
 	function move(pos: number, by: number) {

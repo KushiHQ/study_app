@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from 'urql';
-import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BookOpen, RotateCcw, X } from 'lucide-react-native';
 import { COURSE, FINAL_QUIZ, UNIT_QUIZ } from '../../../../lib/api/queries';
@@ -17,7 +17,6 @@ import { lessonHref } from '../../../../lib/nav';
 import { plain } from '../../../../lib/html';
 import { fonts, radius, useTheme, useTint } from '../../../../lib/theme';
 import { QuestionCard } from '../../../../components/QuestionCard';
-import { Confetti } from '../../../../components/Celebrate';
 import { Ring } from '../../../../components/Ring';
 import { ReportSheet, type ReportTarget } from '../../../../components/ReportSheet';
 import { Button, ErrorBox, Loading, Meter, Press, T, hair } from '../../../../components/ui';
@@ -101,7 +100,7 @@ export default function Quiz() {
 						</T>
 					</Ring>
 					<T v="title" style={{ textAlign: 'center' }}>
-						{score >= 0.9 ? 'Outstanding.' : score >= 0.7 ? 'Strong work.' : score >= 0.5 ? 'Getting there.' : 'A good start.'}
+						Quiz results
 					</T>
 					<T style={{ textAlign: 'center' }}>
 						{score >= 0.7 ? 'You know this. Keep it fresh with flashcards.' : 'Go back over the lessons below, then try again. Every try counts.'}
@@ -121,11 +120,10 @@ export default function Quiz() {
 						<Button kind="hue" hue={hue} title="Try again" icon={<RotateCcw size={16} color={t.onHue} />} onPress={begin} />
 						<Button kind="ghost" title="Back to the course" onPress={() => router.back()} />
 					</View>
-					{score >= 0.7 ? <Confetti /> : null}
 				</ScrollView>
 			) : q ? (
 				<ScrollView contentContainerStyle={{ padding: 18, paddingBottom: insets.bottom + 30, gap: 16 }}>
-					<Animated.View key={q.id} entering={SlideInRight.springify().damping(20)} exiting={SlideOutLeft.duration(200)} style={{ backgroundColor: t.surface, borderRadius: radius.lg, padding: 18, borderWidth: hair, borderColor: t.line }}>
+					<Animated.View key={q.id} entering={FadeIn.duration(150)} style={{ backgroundColor: t.surface, borderRadius: radius.lg, padding: 18, borderWidth: hair, borderColor: t.line }}>
 						<QuestionCard
 							q={q}
 							hue={hue}

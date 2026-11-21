@@ -1,6 +1,7 @@
 // Sign-in: email code, Google (native SDK id token) and Apple (iOS).
 import { Platform } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import Constants from 'expo-constants';
 import { GoogleSignin, isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
 import { gql, type AuthPayload } from './api/client';
 import { deviceLabel, useSession } from './session';
@@ -9,13 +10,17 @@ import { deviceLabel, useSession } from './session';
 // existing STUDY_GOOGLE_CLIENT_IDS already accepts tokens from the app.
 const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '1052447000642-ur5g7kce7v8p4d26dv83vedrbne1jd36.apps.googleusercontent.com';
 
+const IOS_CLIENT_ID: string | undefined = Constants.expoConfig?.extra?.googleIosClientId;
+
+export const googleAvailable = Platform.OS === 'android' || (Platform.OS === 'ios' && Boolean(IOS_CLIENT_ID));
+
 const USER = `id email name school isTeacher staffRole department { id slug name courseCount } level { code name }`;
 const AUTH = `accessToken refreshToken expiresIn user { ${USER} }`;
 
 let configured = false;
 function configureGoogle() {
 	if (configured || Platform.OS === 'web') return;
-	GoogleSignin.configure({ webClientId: WEB_CLIENT_ID, iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID });
+	GoogleSignin.configure({ webClientId: WEB_CLIENT_ID, iosClientId: IOS_CLIENT_ID });
 	configured = true;
 }
 
@@ -33,6 +38,7 @@ export async function verifyCode(email: string, code: string) {
 
 /** Resolves false when the student cancels. */
 export async function signInWithGoogle(): Promise<boolean> {
+	if (!googleAvailable) throw new Error('Google sign-in is unavailable on this build. Use email or another sign-in option.');
 	configureGoogle();
 	try {
 		if (Platform.OS === 'android') await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });

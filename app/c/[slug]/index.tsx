@@ -1,16 +1,15 @@
 // Course: hero in the course's colour, progress, plan, units and lessons (web /c/[slug]).
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshControl, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from 'urql';
-import Animated, { FadeInDown, Extrapolation, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Check, ChevronDown, Layers, Lock, PenLine, Play, Target, Trophy } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Check, ChevronDown, Layers, Lock, PenLine, Target, Trophy } from 'lucide-react-native';
 import { COURSE, ENROLL, UPDATE_ENROLLMENT } from '../../../lib/api/queries';
 import type { CourseOutline, CourseProgress, Plan, Today } from '../../../lib/api/types';
 import { errorText, gql } from '../../../lib/api/client';
 import { isCompleted, useProgress } from '../../../lib/progress';
-import { fonts, radius, useTheme, useTint } from '../../../lib/theme';
+import { alpha, fonts, radius, useTheme, useTint } from '../../../lib/theme';
 import { lessonHref, quizHref } from '../../../lib/nav';
 import { plain } from '../../../lib/html';
 import { addDays, lagosToday } from '../../../lib/study/srs';
@@ -19,6 +18,7 @@ import { Html } from '../../../components/Html';
 import { Button, Card, ErrorBox, Loading, Press, T, hair } from '../../../components/ui';
 import { Ring } from '../../../components/Ring';
 import { CourseIcon } from '../../../components/CourseIcon';
+import { CourseHalo } from '../../../components/CourseHalo';
 
 type Data = { course: CourseOutline; courseProgress: CourseProgress | null; today: Today; plans: Plan[] };
 
@@ -32,18 +32,11 @@ export default function CourseScreen() {
 	const synced = useProgress((s) => s.synced);
 	const [{ data, error, fetching }, refetch] = useQuery<Data>({ query: COURSE, variables: { slug, signedIn: true, preview: null } });
 	const [open, setOpen] = useState<Record<string, boolean>>({});
-	const y = useSharedValue(0);
-	const onScroll = useAnimatedScrollHandler((e) => (y.value = e.contentOffset.y));
-	const heroStyle = useAnimatedStyle(() => ({
-		transform: [{ translateY: interpolate(y.value, [-120, 0, 200], [-60, 0, 80], Extrapolation.CLAMP) }, { scale: interpolate(y.value, [-120, 0], [1.15, 1], Extrapolation.CLAMP) }],
-		opacity: interpolate(y.value, [0, 200], [1, 0.3], Extrapolation.CLAMP)
-	}));
-	const barStyle = useAnimatedStyle(() => ({ opacity: interpolate(y.value, [120, 180], [0, 1], Extrapolation.CLAMP) }));
 
 	useEffect(() => {
 		refetch({ requestPolicy: 'network-only' });
-	}, [synced]);
-	useFocusEffect(useCallback(() => refetch({ requestPolicy: 'cache-and-network' }), []));
+	}, [refetch, synced]);
+	useFocusEffect(useCallback(() => refetch({ requestPolicy: 'cache-and-network' }), [refetch]));
 
 	const c = data?.course;
 	const p = data?.courseProgress ?? null;
@@ -63,51 +56,50 @@ export default function CourseScreen() {
 
 	const done = (id: string) => isCompleted(id, p?.completedLessons, overlay);
 	const allLessons = c.units.flatMap((u) => u.lessons);
-	const covered = allLessons.length ? allLessons.filter((l) => done(l.id)).length / allLessons.length : 0;
+	const completed = allLessons.filter((l) => done(l.id)).length;
+	const covered = allLessons.length ? completed / allLessons.length : 0;
 	const next = p?.nextLesson ?? allLessons.find((l) => !done(l.id) && !l.locked) ?? allLessons[0];
+	const started = Boolean(p?.startedLessons.length || completed);
+	const time = c.card.minutes >= 90 ? `${Math.round(c.card.minutes / 60)} h` : `${c.card.minutes} min`;
 
 	return (
 		<View style={{ flex: 1, backgroundColor: t.bg }}>
-			<Animated.ScrollView
-				onScroll={onScroll}
-				scrollEventThrottle={16}
-				contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+			<ScrollView
+				contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 40, paddingHorizontal: 18, width: '100%', maxWidth: 760, alignSelf: 'center', gap: 16 }}
 				refreshControl={<RefreshControl refreshing={false} tintColor={hue.base} onRefresh={() => refetch({ requestPolicy: 'network-only' })} />}
 			>
-				<Animated.View style={[{ backgroundColor: hue.wash, paddingTop: insets.top + 60, paddingHorizontal: 20, paddingBottom: 28, gap: 12 }, heroStyle]}>
+				<Press onPress={() => router.canGoBack() ? router.back() : router.replace('/courses')} accessibilityRole="button" style={{ minHeight: 44, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+					<ArrowLeft size={18} color={t.accent} />
+					<T v="bodyStrong">Back</T>
+				</Press>
+				<View style={{ backgroundColor: hue.wash, borderWidth: hair, borderColor: alpha(hue.base, 0.28), borderRadius: radius.lg, padding: 20, gap: 14, overflow: 'hidden' }}>
+					<CourseHalo color={hue.base} />
 					<View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-						<View style={{ width: 64, height: 64, borderRadius: 20, backgroundColor: hue.soft, alignItems: 'center', justifyContent: 'center' }}>
-							<CourseIcon name={c.card.icon} size={32} color={hue.ink} />
+						<View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: hue.soft, alignItems: 'center', justifyContent: 'center' }}>
+							<CourseIcon name={c.card.icon} size={25} color={hue.ink} />
 						</View>
-						<View style={{ flex: 1 }}>
-							<Text style={{ fontFamily: fonts.mono, fontSize: 12, letterSpacing: 1.4, color: hue.ink }}>{c.card.code}</Text>
-							<Text style={{ fontFamily: fonts.serif, fontSize: 26, lineHeight: 31, color: t.fg }}>{c.card.title}</Text>
-						</View>
-					</View>
-					{c.card.nickname ? <T style={{ fontFamily: fonts.serifItalic, fontSize: 17, color: t.fg2 }}>{c.card.nickname}</T> : null}
-					<View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 4 }}>
-						<Ring value={covered} size={64} stroke={7} color={hue.base} track={t.surface}>
-							<Text style={{ fontFamily: fonts.bodyBold, fontSize: 14, color: t.fg }}>{Math.round(covered * 100)}%</Text>
-						</Ring>
-						<View style={{ flex: 1, gap: 2 }}>
-							<T v="bodyStrong">
-								{allLessons.filter((l) => done(l.id)).length} of {allLessons.length} lessons
-							</T>
-							<T v="small">Exam ready {Math.round((p?.examReady ?? 0) * 100)}% · about {Math.max(1, Math.round(c.card.minutes / 60))} h in all</T>
+						<View style={{ flex: 1, gap: 3 }}>
+							<T v="label" color={hue.ink}>{c.card.code}</T>
+							<T v="small">{c.units.length} {c.units.length === 1 ? 'unit' : 'units'} · {allLessons.length} lessons · {time}</T>
 						</View>
 					</View>
+					<T v="display" accessibilityRole="header">{plain(c.card.title)}</T>
+					{c.card.nickname ? <T>{plain(c.card.nickname)}</T> : null}
 					{next ? (
-						<Button
-							kind="hue"
-							hue={hue}
-							title={p?.startedLessons.length || covered > 0 ? 'Continue' : 'Start the first lesson'}
-							icon={<Play size={16} color={t.onHue} fill={t.onHue} />}
-							onPress={() => router.push(lessonHref(c.card.slug, next.id) as never)}
-						/>
+						<View style={{ gap: 8 }}>
+							<T v="small">{started ? 'Next' : 'First'}: {plain(next.title)}</T>
+							<Button title={started ? 'Continue' : 'Start the course'} icon={<ArrowRight size={17} color={t.onAmber} />} onPress={() => router.push(lessonHref(c.card.slug, next.id))} />
+						</View>
 					) : null}
-				</Animated.View>
+					{started || p ? (
+						<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14, borderTopWidth: hair, borderColor: alpha(hue.base, 0.26), paddingTop: 14 }}>
+							<ProgressStat value={covered} label="Covered" color={hue.base} track={hue.soft} />
+							<ProgressStat value={p?.examReady ?? 0} label="Exam-ready" color={t.success} track={hue.soft} />
+						</View>
+					) : null}
+				</View>
 
-				<View style={{ padding: 18, gap: 16 }}>
+				<View style={{ gap: 16 }}>
 					{!c.viewerHasAccess ? (
 						<Card style={{ gap: 8, backgroundColor: t.accentSoft, borderColor: 'transparent' }}>
 							<T v="bodyStrong">The first lesson is free.</T>
@@ -122,21 +114,20 @@ export default function CourseScreen() {
 						<Tool label="Final quiz" sub={p?.finalQuizBest != null ? `Best ${Math.round(p.finalQuizBest * 100)}%` : `${c.finalQuizCount} questions`} Icon={Trophy} onPress={() => router.push(quizHref(c.card.slug, 'final') as never)} disabled={!c.finalQuizCount} />
 					</View>
 
-					<PlanCard slug={c.card.slug} p={p} onSaved={() => refetch({ requestPolicy: 'network-only' })} />
-
-					<T v="h2" style={{ marginTop: 6 }}>
-						Units
+					<T v="title" accessibilityRole="header" style={{ marginTop: 6 }}>
+						The route
 					</T>
 					{c.units.map((u, ui) => {
 						const isOpen = open[u.id] ?? u.id === firstOpenUnit;
 						const doneCount = u.lessons.filter((l) => done(l.id)).length;
 						return (
-							<Animated.View key={u.id} entering={FadeInDown.delay(Math.min(ui, 6) * 50)} style={{ backgroundColor: t.surface, borderRadius: radius.md, borderWidth: hair, borderColor: t.line, overflow: 'hidden' }}>
-								<Press scaleTo={0.99} onPress={() => setOpen({ ...open, [u.id]: !isOpen })} accessibilityRole="button" accessibilityState={{ expanded: isOpen }} style={{ padding: 16, flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-									<View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: doneCount === u.lessons.length && u.lessons.length ? hue.base : hue.soft, alignItems: 'center', justifyContent: 'center' }}>
-										{doneCount === u.lessons.length && u.lessons.length ? <Check size={18} color={t.onHue} /> : <Text style={{ fontFamily: fonts.bodyBold, color: hue.ink }}>{ui + 1}</Text>}
-									</View>
+							<View key={u.id} style={{ backgroundColor: t.surface, borderRadius: radius.md, borderWidth: hair, borderColor: t.line, overflow: 'hidden' }}>
+								<Press onPress={() => setOpen({ ...open, [u.id]: !isOpen })} accessibilityRole="button" accessibilityState={{ expanded: isOpen }} style={{ padding: 16, flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+									<Ring value={u.lessons.length ? doneCount / u.lessons.length : 0} size={44} stroke={4} color={hue.base} track={hue.soft} duration={250}>
+										{doneCount > 0 && doneCount === u.lessons.length ? <Check size={17} color={t.success} /> : <T v="micro" color={hue.ink}>{doneCount}/{u.lessons.length}</T>}
+									</Ring>
 									<View style={{ flex: 1 }}>
+										<T v="micro" color={hue.ink}>Unit {ui + 1}</T>
 										<Text style={{ fontFamily: fonts.bodyBold, fontSize: 16, color: t.fg }}>{plain(u.title)}</Text>
 										<T v="small">
 											{doneCount}/{u.lessons.length} lessons{u.quizCount ? ` · quiz of ${u.quizCount}` : ''}
@@ -147,22 +138,21 @@ export default function CourseScreen() {
 									</View>
 								</Press>
 								{isOpen ? (
-									<Animated.View entering={FadeInDown.duration(250)} style={{ paddingHorizontal: 16, paddingBottom: 14, gap: 4 }}>
+									<View style={{ paddingHorizontal: 16, paddingBottom: 14, gap: 4 }}>
 										{u.summary ? <Html html={u.summary} read={false} style={{ fontSize: 14, lineHeight: 20, color: t.muted }} /> : null}
 										{u.lessons.map((l) => {
 											const d = done(l.id);
-											const here = p?.nextLesson?.id === l.id;
+											const here = !d && next?.id === l.id;
 											return (
 												<Press
 													key={l.id}
-													scaleTo={0.98}
 													onPress={() => router.push(lessonHref(c.card.slug, l.id) as never)}
 													accessibilityRole="button"
 													accessibilityLabel={`${l.title}${l.locked ? ', locked' : d ? ', done' : ''}`}
 													style={{ flexDirection: 'row', gap: 12, alignItems: 'center', paddingVertical: 10, paddingHorizontal: 8, borderRadius: 12, backgroundColor: here ? hue.wash : 'transparent' }}
 												>
-													<View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: d ? 0 : 1.5, borderColor: t.line2, backgroundColor: d ? t.success : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-														{d ? <Check size={14} color="#fff" /> : l.locked ? <Lock size={12} color={t.muted} /> : null}
+													<View style={{ width: 25, height: 25, borderRadius: 13, borderWidth: 1.5, borderColor: d ? t.success : here ? hue.base : t.line2, backgroundColor: d ? t.successSoft : here ? hue.soft : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+														{d ? <Check size={14} color={t.success} /> : l.locked ? <Lock size={12} color={t.muted} /> : here ? <ArrowRight size={13} color={hue.ink} /> : null}
 													</View>
 													<View style={{ flex: 1 }}>
 														<Text style={{ fontFamily: here ? fonts.bodyBold : fonts.bodyMedium, fontSize: 15, color: l.locked ? t.muted : t.fg }}>{plain(l.title)}</Text>
@@ -182,11 +172,12 @@ export default function CourseScreen() {
 												<Text style={{ fontFamily: fonts.bodySemi, fontSize: 15, color: hue.ink }}>Unit quiz · {u.quizCount} questions</Text>
 											</Press>
 										) : null}
-									</Animated.View>
+									</View>
 								) : null}
-							</Animated.View>
+							</View>
 						);
 					})}
+					<PlanCard slug={c.card.slug} p={p} onSaved={() => refetch({ requestPolicy: 'network-only' })} />
 					{c.labs.length ? (
 						<Card style={{ gap: 6 }}>
 							<T v="bodyStrong">Labs</T>
@@ -194,15 +185,18 @@ export default function CourseScreen() {
 						</Card>
 					) : null}
 				</View>
-			</Animated.ScrollView>
-			<Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + 56, backgroundColor: t.bg, borderBottomWidth: hair, borderColor: t.line }, barStyle]}>
-				<Text numberOfLines={1} style={{ position: 'absolute', bottom: 16, left: 64, right: 20, fontFamily: fonts.bodyBold, fontSize: 16, color: t.fg }}>
-					{c.card.title}
-				</Text>
-			</Animated.View>
-			<Press onPress={() => router.back()} accessibilityLabel="Back" hitSlop={10} style={{ position: 'absolute', top: insets.top + 8, left: 14, width: 40, height: 40, borderRadius: 20, backgroundColor: t.surface, alignItems: 'center', justifyContent: 'center', borderWidth: hair, borderColor: t.line }}>
-				<ArrowLeft size={20} color={t.fg} />
-			</Press>
+			</ScrollView>
+		</View>
+	);
+}
+
+function ProgressStat({ value, label, color, track }: { value: number; label: string; color: string; track: string }) {
+	return (
+		<View style={{ flex: 1, minWidth: 112, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+			<Ring value={value} size={46} stroke={4.5} color={color} track={track} duration={300}>
+				<T v="micro">{Math.round(value * 100)}%</T>
+			</Ring>
+			<T v="small" style={{ flexShrink: 1 }}>{label}</T>
 		</View>
 	);
 }
@@ -258,7 +252,7 @@ function PlanCard({ slug, p, onSaved }: { slug: string; p: CourseProgress | null
 	return (
 		<Card style={{ gap: 12 }}>
 			<T v="bodyStrong">{enrolled ? 'Your plan' : 'Add to my courses'}</T>
-			<T v="small">When is the exam? Today's plan spreads the lessons out before it.</T>
+			<T v="small">When is the exam? Your study plan spreads the lessons out before that date.</T>
 			<View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
 				<Button small kind="solid" title="−1 week" onPress={() => setExam(addDays(exam ?? addDays(today, 42), -7) < addDays(today, 1) ? addDays(today, 1) : addDays(exam ?? addDays(today, 42), -7))} />
 				<Text style={{ flex: 1, textAlign: 'center', fontFamily: fonts.bodyBold, fontSize: 15, color: t.fg }}>{exam ? shortDate(exam) : 'No date'}</Text>

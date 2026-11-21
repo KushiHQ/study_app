@@ -35,7 +35,7 @@ export function Figure({ block, hue }: { block: FigureBlock; hue: HueSet }) {
 				<View style={{ width: w, height: h }}>
 					{failed ? (
 						<View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-							<T v="small">The picture didn't load. Check your connection.</T>
+							<T v="small">The picture didn’t load. Check your connection.</T>
 						</View>
 					) : (
 						<Image source={{ uri: image.src }} style={{ width: w, height: h }} contentFit="contain" transition={250} accessibilityLabel={image.alt} onError={() => setFailed(true)} />

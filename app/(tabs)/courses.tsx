@@ -1,8 +1,8 @@
 // Courses: every course, live search, department and level filters (web /courses).
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, ScrollView, TextInput, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useQuery } from 'urql';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, X } from 'lucide-react-native';
 import { CATALOGUE, SEARCH } from '../../lib/api/queries';
@@ -10,11 +10,12 @@ import type { CourseCard as Card, Department, Level } from '../../lib/api/types'
 import { errorText } from '../../lib/api/client';
 import { useSession } from '../../lib/session';
 import { fonts, radius, useTheme } from '../../lib/theme';
-import { Chip, ErrorBox, Eyebrow, Press, T, hair } from '../../components/ui';
+import { Button, Chip, ErrorBox, Press, T, hair } from '../../components/ui';
 import { CourseCard } from '../../components/CourseCard';
 
 export default function Courses() {
 	const t = useTheme();
+	const router = useRouter();
 	const insets = useSafeAreaInsets();
 	const user = useSession((s) => s.user);
 	const [d, setD] = useState<string | null>(null);
@@ -42,10 +43,9 @@ export default function Courses() {
 	const header = (
 		<View style={{ gap: 14, marginBottom: 14 }}>
 			<View style={{ marginTop: 8 }}>
-				<Eyebrow>Courses</Eyebrow>
-				<T v="display">Find your course.</T>
+				<T v="display" accessibilityRole="header">Courses</T>
 			</View>
-			<View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, height: 50, borderRadius: radius.pill, backgroundColor: t.surface, borderWidth: hair, borderColor: t.line2, paddingHorizontal: 16 }}>
+			<View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, height: 50, borderRadius: radius.sm, backgroundColor: t.surface, borderWidth: hair, borderColor: t.line2, paddingHorizontal: 16 }}>
 				<Search size={18} color={t.muted} />
 				<TextInput
 					value={q}
@@ -88,25 +88,22 @@ export default function Courses() {
 	return (
 		<FlatList
 			style={{ flex: 1, backgroundColor: t.bg }}
-			contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 18, paddingBottom: insets.bottom + 110, gap: 12 }}
+			contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 18, paddingBottom: 24, gap: 10, width: '100%', maxWidth: 720, alignSelf: 'center' }}
 			data={list}
 			keyExtractor={(c) => c.slug}
 			ListHeaderComponent={header}
 			keyboardShouldPersistTaps="handled"
 			keyboardDismissMode="on-drag"
 			refreshControl={<RefreshControl refreshing={false} tintColor={t.amber} onRefresh={() => refetch({ requestPolicy: 'network-only' })} />}
-			renderItem={({ item, index }) => (
-				<Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40).duration(380)}>
-					<CourseCard card={item} />
-				</Animated.View>
-			)}
+			renderItem={({ item }) => <CourseCard card={item} />}
 			ListEmptyComponent={
 				fetching || searching ? (
 					<T v="small">Loading…</T>
 				) : (
 					<View style={{ gap: 6, paddingVertical: 20 }}>
-						<T v="h3">Uncharted territory.</T>
-						<T>No course matches yet. You can ask for one on study.kushi.ng/request.</T>
+						<T v="h3">No courses found</T>
+						<T>Try a different title or course code.</T>
+						<Button small kind="ghost" title="Request a course" onPress={() => router.push({ pathname: '/request', params: { title: q.trim() } })} style={{ alignSelf: 'flex-start', marginTop: 6 }} />
 					</View>
 				)
 			}

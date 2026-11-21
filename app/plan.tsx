@@ -14,8 +14,7 @@ import { gql, errorText } from '../lib/api/client';
 import { purchases, type StoreOffer } from '../lib/purchases';
 import { daysLeft } from '../lib/study/trial';
 import { shortDate } from '../lib/study/ids';
-import { fonts, radius, useTheme } from '../lib/theme';
-import { Confetti } from '../components/Celebrate';
+import { fonts, useTheme } from '../lib/theme';
 import { Button, Card, ErrorBox, Loading, Pill, Press, T } from '../components/ui';
 
 type Billing = { trialDays: number; plans: Plan[]; access: Access; subscription: Subscription | null };
@@ -31,7 +30,6 @@ export default function PlanScreen() {
 	const [loadingOffer, setLoadingOffer] = useState(purchases.available);
 	const [busy, setBusy] = useState<'' | 'buy' | 'restore'>('');
 	const [msg, setMsg] = useState('');
-	const [done, setDone] = useState(false);
 
 	useEffect(() => {
 		purchases
@@ -59,8 +57,7 @@ export default function PlanScreen() {
 			if (!ok) return;
 			const live = await waitForAccess();
 			refetch({ requestPolicy: 'network-only' });
-			if (live) setDone(true);
-			else setMsg('Payment received. Your plan will switch on in a minute; pull to refresh or come back shortly.');
+			setMsg(live ? 'Your Study plan is active.' : 'Payment received. Your Study plan will activate shortly.');
 		} catch (e) {
 			setMsg(errorText(e));
 		} finally {
@@ -110,7 +107,7 @@ export default function PlanScreen() {
 
 				{error && !data ? <ErrorBox message={errorText(error)} onRetry={() => refetch({ requestPolicy: 'network-only' })} /> : null}
 
-				<Animated.View entering={FadeInDown.springify().damping(18)}>
+				<Animated.View entering={FadeInDown.duration(180)}>
 					<Card style={{ gap: 14, borderColor: t.amber, borderWidth: 1.5 }}>
 						<View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
 							<Text style={{ fontFamily: fonts.display, fontSize: 34, color: t.fg, letterSpacing: -1 }}>{offer?.price ?? (loadingOffer ? '…' : 'Monthly')}</Text>
@@ -174,7 +171,6 @@ export default function PlanScreen() {
 					</Text>
 				</View>
 			</ScrollView>
-			{done ? <Confetti /> : null}
 		</View>
 	);
 }

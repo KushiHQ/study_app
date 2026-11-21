@@ -1,8 +1,7 @@
 // One lesson block → one native view (study_web_app src/lib/ui/blocks/Blocks.svelte).
-// Blocks rise in gently as they first scroll into view.
-import { memo, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown, LinearTransition, useReducedMotion } from 'react-native-reanimated';
+import { memo, useMemo, useState, type ReactNode } from 'react';
+import { ScrollView, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeInDown, LinearTransition } from 'react-native-reanimated';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { Copy, Check, Quote, ChevronRight, RotateCcw, Puzzle } from 'lucide-react-native';
@@ -20,21 +19,13 @@ export const Blocks = memo(function Blocks({ blocks, hue, onReport }: { blocks: 
 	return (
 		<View style={{ gap: 22 }}>
 			{blocks.map((b, i) => (
-				<Rise key={b.key ?? i} index={i}>
-					<BlockView b={b} hue={hue} onLongPress={onReport && b.type !== 'heading' ? () => onReport(b.key ?? `#${i + 1}`, KIND[b.type] ?? 'this part') : undefined} />
-				</Rise>
+				<BlockView key={b.key ?? i} b={b} hue={hue} onLongPress={onReport && b.type !== 'heading' ? () => onReport(b.key ?? `#${i + 1}`, KIND[b.type] ?? 'this part') : undefined} />
 			))}
 		</View>
 	);
 });
 
 export const KIND: Record<string, string> = { text: 'a paragraph', analogy: 'the analogy', bigidea: 'the big idea', steps: 'the worked example', compare: 'the table', diagram: 'the diagram', figure: 'the picture', formula: 'the formula', code: 'the code', think: 'the think-about-it question', mnemonic: 'the memory trick', story: 'the story', pitfall: 'the warning', widget: 'the interactive piece', trace: 'the walk-through', plot: 'the graph' };
-
-function Rise({ children, index }: { children: ReactNode; index: number }) {
-	const reduced = useReducedMotion();
-	if (reduced) return <View>{children}</View>;
-	return <Animated.View entering={FadeInDown.duration(520).delay(Math.min(index, 6) * 70).springify().damping(18)}>{children}</Animated.View>;
-}
 
 function BlockView({ b, hue, onLongPress }: { b: Block; hue: HueSet; onLongPress?: () => void }) {
 	const t = useTheme();
@@ -91,7 +82,7 @@ function BlockView({ b, hue, onLongPress }: { b: Block; hue: HueSet; onLongPress
 	})();
 	if (!onLongPress) return body;
 	return (
-		<Press scaleTo={1} onLongPress={onLongPress} delayLongPress={450} accessibilityHint="Long-press to report a problem with this part">
+		<Press onLongPress={onLongPress} delayLongPress={450} accessibilityHint="Long-press to report a problem with this part">
 			{body}
 		</Press>
 	);
@@ -272,7 +263,7 @@ function Think({ prompt, answer, hue }: { prompt: string; answer: string; hue: H
 			</View>
 			{open ? (
 				<Animated.View entering={FadeInDown.duration(300)} style={{ backgroundColor: t.surface, borderRadius: 14, padding: 14, gap: 6 }}>
-					<Eye hue={hue}>Here's how to see it</Eye>
+					<Eye hue={hue}>Explanation</Eye>
 					<Html html={answer} hue={hue} style={{ fontSize: 16, lineHeight: 25 }} />
 				</Animated.View>
 			) : (

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from 'urql';
-import Animated, { Extrapolation, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Extrapolation, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -19,7 +19,6 @@ import { GRADES, addDays, freshCard, intervalLabel, lagosToday, review, type Car
 import { plain } from '../../../lib/html';
 import { fonts, radius, useTheme, useTint } from '../../../lib/theme';
 import { Html } from '../../../components/Html';
-import { Confetti } from '../../../components/Celebrate';
 import { Button, ErrorBox, Loading, Meter, Press, T, hair } from '../../../components/ui';
 
 type Sched = CardState & { dueOn: string };
@@ -105,7 +104,7 @@ export default function Cards() {
 	};
 	const doFlip = () => {
 		Haptics.selectionAsync().catch(() => {});
-		flip.value = withSpring(flipped ? 0 : 1, { damping: 16, stiffness: 140 });
+		flip.value = withTiming(flipped ? 0 : 1, { duration: 190 });
 		setFlipped(!flipped);
 	};
 
@@ -121,8 +120,8 @@ export default function Cards() {
 			} else if (e.translationX < -width * 0.3 || e.velocityX < -900) {
 				x.value = withTiming(-width * 1.3, { duration: 220 }, () => runOnJS(grade)(0));
 			} else {
-				x.value = withSpring(0);
-				y.value = withSpring(0);
+				x.value = withTiming(0, { duration: 160 });
+				y.value = withTiming(0, { duration: 160 });
 			}
 		});
 	const tap = Gesture.Tap().onEnd(() => runOnJS(doFlip)());
@@ -160,7 +159,6 @@ export default function Cards() {
 				</View>
 			) : !queue.length || finished ? (
 				<View style={{ flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center', gap: 14 }}>
-					<Text style={{ fontSize: 54 }}>{finished ? '🎉' : '🌱'}</Text>
 					<T v="title" style={{ textAlign: 'center' }}>
 						{finished ? `${reviewed} card${reviewed === 1 ? '' : 's'} reviewed.` : 'Nothing due right now.'}
 					</T>
@@ -169,7 +167,6 @@ export default function Cards() {
 					</T>
 					<Button kind="hue" hue={hue} title="Go through every card" icon={<Shuffle size={16} color={t.onHue} />} onPress={() => build(true)} style={{ alignSelf: 'stretch' }} />
 					<Button kind="ghost" title="Back to the course" onPress={() => router.back()} style={{ alignSelf: 'stretch' }} />
-					{finished && reviewed >= 5 ? <Confetti /> : null}
 				</View>
 			) : current ? (
 				<View style={{ flex: 1, padding: 20, gap: 18 }}>

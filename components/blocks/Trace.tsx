@@ -128,7 +128,7 @@ function Cells({ s, kind, hue, t, vLabel }: { s: TraceState; kind: string; hue: 
 					const c = cellColors(i, s, hue, t);
 					const ptrs = (s.ptr ?? []).filter((p) => p.at === i);
 					return (
-						<Animated.View key={key} layout={LinearTransition.springify().damping(17)} entering={ZoomIn.duration(250)} style={{ alignItems: 'center', gap: 4, opacity: c.dim ? 0.5 : 1 }}>
+						<Animated.View key={key} layout={LinearTransition.duration(180)} entering={ZoomIn.duration(250)} style={{ alignItems: 'center', gap: 4, opacity: c.dim ? 0.5 : 1 }}>
 							<View style={{ minWidth: vertical ? 120 : 44, height: 44, paddingHorizontal: 8, borderRadius: 10, borderWidth: 1.5, borderColor: c.border, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' }}>
 								<Text style={{ fontFamily: fonts.mono, fontSize: 15, color: c.fg }}>{v === '_' ? '' : v}</Text>
 							</View>

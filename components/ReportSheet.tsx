@@ -56,11 +56,11 @@ export function ReportSheet({ target, onClose }: { target: ReportTarget | null; 
 		<Modal visible={!!target} transparent animationType="fade" onRequestClose={close}>
 			<KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
 				<Pressable onPress={close} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} />
-				<Animated.View entering={SlideInDown.springify().damping(18)} style={{ backgroundColor: t.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: 20, paddingBottom: insets.bottom + 20, gap: 14 }}>
+				<Animated.View entering={SlideInDown.duration(180)} style={{ backgroundColor: t.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: 20, paddingBottom: insets.bottom + 20, gap: 14 }}>
 					{sent ? (
 						<>
 							<T v="h2">Thank you.</T>
-							<T>We read every report and fix what's wrong. You've made this course better for everyone.</T>
+							<T>Thanks for helping us improve this course.</T>
 							<Button title="Done" onPress={close} />
 						</>
 					) : (

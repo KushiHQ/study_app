@@ -1,79 +1,70 @@
 import { Platform, Text, View } from 'react-native';
-import { Tabs } from 'expo-router';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { BookOpen, Sun, Timer, User } from 'lucide-react-native';
-import { fonts, radius, useTheme } from '../../lib/theme';
-import { Press, hair } from '../../components/ui';
+import { PlatformPressable } from '@react-navigation/elements';
+import { useLinkBuilder } from '@react-navigation/native';
+import { Tabs } from 'expo-router';
+import { BookOpen, CalendarDays, UserRound } from 'lucide-react-native';
+import { alpha, fonts, radius, useTheme } from '../../lib/theme';
+import { hair } from '../../components/ui';
 
-const ICONS = { index: Sun, courses: BookOpen, focus: Timer, account: User } as const;
-const LABELS = { index: 'Today', courses: 'Courses', focus: 'Focus', account: 'You' } as const;
+const ITEMS = {
+	index: { label: 'Today', Icon: CalendarDays },
+	courses: { label: 'Courses', Icon: BookOpen },
+	account: { label: 'Account', Icon: UserRound }
+} as const;
 
 export default function TabsLayout() {
 	return (
-		<Tabs screenOptions={{ headerShown: false, animation: 'shift' }} tabBar={(p) => <TabBar {...p} />}>
-			<Tabs.Screen name="index" />
-			<Tabs.Screen name="courses" />
-			<Tabs.Screen name="focus" />
-			<Tabs.Screen name="account" />
+		<Tabs tabBar={(props) => <StudyDock {...props} />} screenOptions={{ headerShown: false, animation: 'none' }}>
+			<Tabs.Screen name="index" options={{ title: ITEMS.index.label }} />
+			<Tabs.Screen name="courses" options={{ title: ITEMS.courses.label }} />
+			<Tabs.Screen name="account" options={{ title: ITEMS.account.label }} />
 		</Tabs>
 	);
 }
 
-function TabBar({ state, navigation }: BottomTabBarProps) {
+function StudyDock({ state, navigation, insets }: BottomTabBarProps) {
 	const t = useTheme();
-	const insets = useSafeAreaInsets();
+	const { buildHref } = useLinkBuilder();
+
 	return (
-		<View
-			style={{
-				position: 'absolute',
-				left: 16,
-				right: 16,
-				bottom: Math.max(insets.bottom, 12),
-				height: 64,
-				borderRadius: radius.pill,
-				backgroundColor: t.name === 'night' ? 'rgba(18,26,46,0.96)' : 'rgba(255,255,255,0.97)',
-				borderWidth: hair,
-				borderColor: t.line2,
-				flexDirection: 'row',
-				paddingHorizontal: 6,
-				alignItems: 'center',
-				shadowColor: '#000',
-				shadowOpacity: t.name === 'night' ? 0.5 : 0.12,
-				shadowRadius: 20,
-				shadowOffset: { width: 0, height: 8 },
-				elevation: 12
-			}}
-		>
-			{state.routes.map((r, i) => {
-				const focused = state.index === i;
-				const Icon = ICONS[r.name as keyof typeof ICONS] ?? Sun;
-				return (
-					<Press
-						key={r.key}
-						haptic
-						scaleTo={0.9}
-						accessibilityRole="tab"
-						accessibilityState={{ selected: focused }}
-						accessibilityLabel={LABELS[r.name as keyof typeof LABELS]}
-						onPress={() => {
-							const e = navigation.emit({ type: 'tabPress', target: r.key, canPreventDefault: true } as never) as unknown as { defaultPrevented: boolean };
-							if (!focused && !e.defaultPrevented) navigation.navigate(r.name);
-						}}
-						style={{ flex: 1, height: 52, alignItems: 'center', justifyContent: 'center' }}
-					>
-						<Pill on={focused} color={t.accentSoft} />
-						<Icon size={21} color={focused ? t.accent : t.muted} strokeWidth={focused ? 2.4 : 2} />
-						<Text style={{ fontFamily: focused ? fonts.bodyBold : fonts.bodyMedium, fontSize: 11, marginTop: 2, color: focused ? t.accent : t.muted }}>{LABELS[r.name as keyof typeof LABELS]}</Text>
-					</Press>
-				);
-			})}
+		<View style={{ backgroundColor: t.bg, paddingTop: 5, paddingBottom: Math.max(insets.bottom, 10), paddingLeft: Math.max(14, insets.left), paddingRight: Math.max(14, insets.right) }}>
+			<View accessibilityRole="tablist" style={{ alignSelf: 'center', width: '100%', maxWidth: 440, borderRadius: radius.md, borderWidth: hair, borderColor: t.line2, backgroundColor: t.surface, padding: 5, flexDirection: 'row', gap: 4 }}>
+				{state.routes.map((route, index) => {
+					const item = ITEMS[route.name as keyof typeof ITEMS];
+					if (!item) return null;
+					const selected = state.index === index;
+					const { Icon, label } = item;
+					const color = selected ? t.accent : t.fg2;
+					return (
+						<PlatformPressable
+							key={route.key}
+							href={buildHref(route.name, route.params)}
+							role={Platform.OS === 'ios' ? 'button' : 'tab'}
+							accessibilityState={{ selected }}
+							aria-selected={selected}
+							accessibilityLabel={label}
+							pressOpacity={0.76}
+							pressColor={alpha(t.amber, 0.10)}
+							onPress={() => {
+								const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+								if (!selected && !event.defaultPrevented) navigation.navigate(route.name, route.params);
+							}}
+							onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
+							style={{
+								flex: 1, minWidth: 0, minHeight: 48, paddingHorizontal: 5, paddingVertical: 7,
+								flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6,
+								borderRadius: radius.sm, borderWidth: hair,
+								borderColor: selected ? alpha(t.amber, 0.24) : 'transparent',
+								backgroundColor: selected ? t.accentSoft : 'transparent'
+							}}
+						>
+							<Icon size={17} color={color} strokeWidth={selected ? 2.25 : 1.8} />
+							<Text style={{ flexShrink: 1, fontFamily: selected ? fonts.bodyBold : fonts.bodySemi, fontSize: 13, lineHeight: 17, color }}>{label}</Text>
+						</PlatformPressable>
+					);
+				})}
+			</View>
 		</View>
 	);
-}
-
-function Pill({ on, color }: { on: boolean; color: string }) {
-	const a = useAnimatedStyle(() => ({ opacity: withSpring(on ? 1 : 0), transform: [{ scale: withSpring(on ? 1 : 0.6, { damping: 15 }) }] }));
-	return <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 2, bottom: 2, left: 6, right: 6, borderRadius: 26, backgroundColor: color }, a]} />;
 }

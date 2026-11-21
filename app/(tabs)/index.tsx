@@ -1,239 +1,157 @@
-// Today: greeting, streak, today's plan, trial banner, my courses (web /).
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { RefreshControl, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef } from 'react';
+import { RefreshControl, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import { useQuery } from 'urql';
-import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, Easing } from 'react-native-reanimated';
-import { ArrowRight, BookOpen, Flame, Layers, PenLine, Target } from 'lucide-react-native';
+import { ArrowRight, BookOpen, CalendarDays, Flame, Layers, PenLine, Target } from 'lucide-react-native';
 import { HOME } from '../../lib/api/queries';
-import type { Access, CourseProgress, Today } from '../../lib/api/types';
+import type { Access, CourseProgress, Today, TodayItem } from '../../lib/api/types';
 import { errorText } from '../../lib/api/client';
+import { plain } from '../../lib/html';
+import { courseHref, greeting, lessonHref, todayHref } from '../../lib/nav';
 import { useSession } from '../../lib/session';
-import { useProgress } from '../../lib/progress';
-import { fonts, radius, useTheme, tintOf } from '../../lib/theme';
-import { greeting, todayHref } from '../../lib/nav';
 import { daysLeft } from '../../lib/study/trial';
-import { shortDate } from '../../lib/study/ids';
-import { Button, Card, ErrorBox, Eyebrow, Press, Screen, T, hair } from '../../components/ui';
+import { useProgress } from '../../lib/progress';
+import { alpha, radius, useTheme, useTint } from '../../lib/theme';
+import { Button, Card, ErrorBox, Meter, Press, Screen, T, hair } from '../../components/ui';
 import { CourseCard } from '../../components/CourseCard';
-import { RollingNumber } from '../../components/RollingNumber';
+import { CourseHalo } from '../../components/CourseHalo';
 
 type Home = { today: Today; myCourses: CourseProgress[]; access: Access };
 
-const KIND: Record<string, { Icon: typeof BookOpen; label: string }> = {
-	lesson: { Icon: BookOpen, label: 'Lesson' },
-	cards: { Icon: Layers, label: 'Flashcards' },
-	quiz: { Icon: Target, label: 'Quiz' },
-	review: { Icon: PenLine, label: 'Practice' }
+const ACTIVITY = {
+	lesson: { icon: BookOpen, label: 'Lesson' },
+	cards: { icon: Layers, label: 'Flashcards' },
+	quiz: { icon: Target, label: 'Quiz' },
+	mock: { icon: Target, label: 'Mock exam' },
+	review: { icon: PenLine, label: 'Practice' }
 };
 
 export default function TodayScreen() {
 	const t = useTheme();
 	const router = useRouter();
-	const user = useSession((s) => s.user);
-	const synced = useProgress((s) => s.synced);
+	const firstName = useSession((state) => state.user?.name?.trim().split(/\s+/)[0]);
+	const synced = useProgress((state) => state.synced);
+	const lastSync = useRef(synced);
 	const [{ data, fetching, error }, refetch] = useQuery<Home>({ query: HOME });
-	const [pulling, setPulling] = useState(false);
-	const seen = useRef(synced);
-
+	useFocusEffect(useCallback(() => refetch({ requestPolicy: 'cache-and-network' }), [refetch]));
 	useEffect(() => {
-		if (synced !== seen.current) {
-			seen.current = synced;
-			refetch({ requestPolicy: 'network-only' });
-		}
-	}, [synced]);
-	useFocusEffect(useCallback(() => refetch({ requestPolicy: 'cache-and-network' }), []));
+		if (lastSync.current === synced) return;
+		lastSync.current = synced;
+		refetch({ requestPolicy: 'network-only' });
+	}, [refetch, synced]);
 
-	const firstName = (user?.name ?? '').split(' ')[0];
 	const today = data?.today;
-	const totalMin = today?.items.reduce((s, i) => s + i.minutes, 0) ?? 0;
+	const [first, ...remaining] = today?.items ?? [];
+	const active = data?.myCourses.find((item) => item.nextLesson && !item.nextLesson.locked);
+	const recent = data?.myCourses[0];
+	const next = active?.nextLesson;
+	const hue = useTint(first?.courseSlug ?? active?.courseSlug ?? recent?.courseSlug);
+	const firstCourse = !first && !active && !recent;
+	const leadColor = firstCourse ? t.amber : hue.base;
+	const leadBackground = firstCourse ? t.accentSoft : hue.wash;
+	const leadInk = firstCourse ? t.accent : hue.ink;
+	const LeadIcon = first ? activity(first).icon : BookOpen;
+	const leadTitle = first ? plain(first.title) : next ? plain(next.title) : recent ? plain(recent.courseTitle) : 'Find your first course';
+	const leadDetail = first ? first.courseTitle : next ? active?.courseTitle : recent ? 'Review a lesson or practise what you’ve learned.' : 'Browse lessons by department, level or course code.';
+	const leadHref = first ? todayHref(first) : active && next ? lessonHref(active.courseSlug, next.id) : recent ? courseHref(recent.courseSlug) : '/courses';
+	const date = new Intl.DateTimeFormat('en-NG', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Africa/Lagos' }).format(new Date());
 
 	return (
-		<Screen
-			refreshControl={
-				<RefreshControl
-					refreshing={pulling}
-					tintColor={t.amber}
-					onRefresh={async () => {
-						setPulling(true);
-						refetch({ requestPolicy: 'network-only' });
-						setTimeout(() => setPulling(false), 700);
-					}}
-				/>
-			}
-		>
-			<Animated.View entering={FadeInDown.duration(500)} style={{ marginTop: 8, marginBottom: 18 }}>
-				<Eyebrow>{new Intl.DateTimeFormat('en-NG', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Africa/Lagos' }).format(new Date())}</Eyebrow>
-				<T v="display">
-					{greeting()}
-					{firstName ? `, ${firstName}` : ''}.
-				</T>
-				<T style={{ marginTop: 8 }}>
-					{today?.items.length
-						? `${today.items.length} thing${today.items.length === 1 ? '' : 's'} on today's plan, about ${totalMin} minutes. Small steps, every day.`
-						: data?.myCourses.length
-							? 'Nothing due today. Read ahead, or rest: both count.'
-							: 'Pick a course to start your plan.'}
-				</T>
-			</Animated.View>
-
+		<Screen refreshControl={<RefreshControl refreshing={fetching && !!data} tintColor={t.accent} onRefresh={() => refetch({ requestPolicy: 'network-only' })} />}
+			contentContainerStyle={{ gap: 28, paddingHorizontal: 22, width: '100%', maxWidth: 720, alignSelf: 'center' }}>
+			<View style={{ gap: 9, paddingTop: 12 }}>
+				<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+					<CalendarDays color={t.accent} size={15} />
+					<T v="label">{date}</T>
+				</View>
+				<T v="display" accessibilityRole="header">{greeting()}{firstName ? `, ${firstName}` : ''}.</T>
+			</View>
 			{error && !data ? <ErrorBox message={errorText(error)} onRetry={() => refetch({ requestPolicy: 'network-only' })} /> : null}
+			{fetching && !data ? <T v="small">Loading your study plan…</T> : null}
+			{data ? (
+				<Card style={{ padding: 19, marginTop: firstCourse ? 10 : 0, backgroundColor: leadBackground, borderColor: alpha(leadColor, 0.32), gap: 12 }}>
+					<View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { borderRadius: radius.md, overflow: 'hidden' }]}>
+						<CourseHalo color={leadColor} />
+					</View>
+					{firstCourse ? <Image source={require('../../assets/ollie/notes.webp')} style={{ position: 'absolute', width: '43%', maxWidth: 165, height: 154, right: 0, top: -28 }} contentFit="contain" autoplay={false} accessible={false} pointerEvents="none" /> : null}
+					<View style={{ gap: 8, paddingRight: firstCourse ? '39%' : 0 }}>
+						<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+							<LeadIcon size={15} color={leadInk} />
+							<T v="label" color={leadInk}>{first ? 'Up next' : next ? 'Continue reading' : recent ? 'Review' : 'Get started'}</T>
+						</View>
+						<T v="title" accessibilityRole="header">{leadTitle}</T>
+						<T>{leadDetail}{first ? ` · ${first.minutes} min` : ''}</T>
+					</View>
+					{!first && active ? <Meter value={active.covered} height={3} /> : null}
+					<Button title={first ? `Open ${activity(first).label.toLowerCase()}` : next ? 'Open lesson' : recent ? 'Open course' : 'Browse courses'} onPress={() => router.push(leadHref as never)} style={{ alignSelf: 'flex-start' }} />
+				</Card>
+			) : null}
 
-			{today ? (
-				<Animated.View entering={FadeInDown.delay(80).duration(500)} style={{ flexDirection: 'row', gap: 12, marginBottom: 18 }}>
-					<Streak days={today.streakDays} lit={today.studiedToday} />
+			{today && (today.streakDays > 0 || today.daysToExam !== null) ? (
+				<View style={{ flexDirection: 'row', gap: 10 }}>
+					<Card style={{ flex: 1, gap: 5, padding: 14, backgroundColor: today.studiedToday ? t.accentSoft : t.surface }}>
+						<Flame size={21} color={t.accent} />
+						<T v="label">Study streak</T>
+						<T v="h2">{today.streakDays} {today.streakDays === 1 ? 'day' : 'days'}</T>
+						{today.studiedToday ? <T v="small" color={t.success}>Studied today</T> : null}
+					</Card>
 					{today.daysToExam !== null ? (
-						<Card style={{ flex: 1, gap: 2 }}>
-							<T v="label">Exam</T>
-							<View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-								<RollingNumber value={today.daysToExam} style={{ fontFamily: fonts.display, fontSize: 28, color: t.fg }} />
-								<T v="small">day{today.daysToExam === 1 ? '' : 's'} left</T>
-							</View>
-							<T v="small" color={today.behindBy > 0 ? t.danger : t.success}>
-								{today.behindBy > 0 ? `${today.behindBy} behind plan` : 'On track'}
-							</T>
+						<Card style={{ flex: 1, gap: 5, padding: 14, backgroundColor: t.signalSoft }}>
+							<CalendarDays size={21} color={t.signal} />
+							<T v="label">Next exam</T>
+							<T v="h2">{today.daysToExam === 0 ? 'Today' : `${today.daysToExam} ${today.daysToExam === 1 ? 'day' : 'days'} left`}</T>
+							<T v="small" color={today.behindBy > 0 ? t.danger : t.success}>{today.behindBy > 0 ? `${today.behindBy} behind plan` : 'On track'}</T>
 						</Card>
 					) : null}
-				</Animated.View>
-			) : null}
-
-			{today && today.behindBy > 0 ? (
-				<Card style={{ marginBottom: 16, backgroundColor: t.accentSoft, borderColor: 'transparent' }}>
-					<T color={t.fg}>
-						You're {today.behindBy} lesson{today.behindBy === 1 ? '' : 's'} behind your plan. No stress: one extra lesson a day for a few days closes the gap.
-					</T>
-				</Card>
-			) : null}
-
-			{today?.items.length ? (
-				<View style={{ marginBottom: 22 }}>
-					<View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
-						<T v="h2">Your plan for today</T>
-						<T v="small">about {totalMin} min</T>
-					</View>
-					<View style={{ gap: 10 }}>
-						{today.items.map((item, i) => {
-							const k = KIND[item.kind] ?? KIND.lesson;
-							const hue = t.hues[tintOf(item.courseSlug)];
-							return (
-								<Animated.View key={`${item.kind}-${item.refId}-${i}`} entering={FadeInDown.delay(120 + i * 60).duration(450)}>
-									<Press
-										haptic
-										onPress={() => router.push(todayHref(item) as never)}
-										accessibilityRole="button"
-										style={{
-											flexDirection: 'row',
-											alignItems: 'center',
-											gap: 12,
-											padding: 14,
-											borderRadius: radius.md,
-											backgroundColor: i === 0 ? hue.wash : t.surface,
-											borderWidth: i === 0 ? 1.5 : hair,
-											borderColor: i === 0 ? hue.base : t.line
-										}}
-									>
-										<View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: hue.soft, alignItems: 'center', justifyContent: 'center' }}>
-											<k.Icon size={20} color={hue.ink} />
-										</View>
-										<View style={{ flex: 1, gap: 2 }}>
-											<Text style={{ fontFamily: fonts.mono, fontSize: 10, letterSpacing: 1.2, color: hue.ink, textTransform: 'uppercase' }}>
-												{k.label} · {item.courseTitle}
-											</Text>
-											<Text style={{ fontFamily: fonts.bodySemi, fontSize: 15, color: t.fg }} numberOfLines={2}>
-												{item.title}
-											</Text>
-										</View>
-										<View style={{ alignItems: 'flex-end', gap: 4 }}>
-											<T v="small">{item.minutes} min</T>
-											{i === 0 ? (
-												<View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: t.amber, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
-													<Text style={{ fontFamily: fonts.bodyBold, fontSize: 12, color: t.onAmber }}>Start</Text>
-													<ArrowRight size={13} color={t.onAmber} />
-												</View>
-											) : (
-												<ArrowRight size={16} color={t.muted} />
-											)}
-										</View>
-									</Press>
-								</Animated.View>
-							);
-						})}
-					</View>
 				</View>
-			) : data?.myCourses.length ? (
-				<Card style={{ marginBottom: 18, gap: 6 }}>
-					<T v="h2">All clear for today.</T>
-					<T>You're on track. Read ahead, flip a few flashcards, or rest: both count.</T>
-				</Card>
+			) : null}
+			{remaining.length ? (
+				<View style={{ gap: 8 }}>
+					<T v="title" accessibilityRole="header">Later today</T>
+					{remaining.map((item, index) => <PlanRow key={`${item.kind}-${item.refId}-${index}`} item={item} />)}
+				</View>
 			) : null}
 
-			{data?.access.source === 'trial' ? (
-				<Card style={{ marginBottom: 18, gap: 10, backgroundColor: t.accentSoft, borderColor: 'transparent' }}>
-					<Eyebrow>Free trial</Eyebrow>
-					<T color={t.fg}>
-						<Text style={{ fontFamily: fonts.bodyBold }}>
-							{daysLeft(data.access.until)} day{daysLeft(data.access.until) === 1 ? '' : 's'} left.
-						</Text>{' '}
-						Every lesson, quiz and flashcard in every course is open until {data.access.until ? shortDate(data.access.until) : 'then'}.
-					</T>
-					<Button small title="Keep it going" onPress={() => router.push('/plan')} style={{ alignSelf: 'flex-start' }} />
-				</Card>
-			) : data && !data.access.hasAccess ? (
-				<Card style={{ marginBottom: 18, gap: 10 }}>
-					<Eyebrow>One plan</Eyebrow>
-					<T>One plan opens every lesson, quiz and flashcard in every course.</T>
-					<Button small title="See the plan" onPress={() => router.push('/plan')} style={{ alignSelf: 'flex-start' }} />
-				</Card>
-			) : null}
-
-			<View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
-				<T v="h2">Your courses</T>
-				<Press onPress={() => router.push('/courses')} hitSlop={10}>
-					<T v="small" color={t.accent}>
-						Browse all
-					</T>
-				</Press>
-			</View>
 			{data?.myCourses.length ? (
-				<View style={{ gap: 12 }}>
-					{data.myCourses.map((p, i) => (
-						<Animated.View key={p.courseSlug} entering={FadeInDown.delay(160 + i * 60).duration(450)}>
-							<CourseCard progress={p} />
-						</Animated.View>
-					))}
+				<View style={{ gap: 10 }}>
+					<View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+						<T v="title" accessibilityRole="header">Your courses</T>
+						<Press accessibilityRole="button" onPress={() => router.push('/courses')} style={{ paddingVertical: 10 }}><T v="bodyStrong" color={t.accent}>Browse all</T></Press>
+					</View>
+					{data.myCourses.map((item) => <CourseCard key={item.courseSlug} progress={item} />)}
 				</View>
-			) : data ? (
-				<Card style={{ gap: 10, alignItems: 'flex-start' }}>
-					<T v="h2">Pick your first course.</T>
-					<T>Find it by department and level, or search by its title.</T>
-					<Button title="Find my course" onPress={() => router.push('/courses')} />
-				</Card>
-			) : fetching ? (
-				<T v="small">Loading your courses…</T>
+			) : null}
+			{data && (data.access.source === 'trial' || !data.access.hasAccess) ? (
+				<Press accessibilityRole="button" onPress={() => router.push('/plan')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: hair, borderColor: t.line2, paddingVertical: 14 }}>
+					<View style={{ flex: 1, gap: 3 }}>
+						<T v="bodyStrong">{data.access.source === 'trial' ? `${daysLeft(data.access.until)} days left in your trial` : 'Explore the Study plan'}</T>
+						<T v="small">Full access to lessons, quizzes and flashcards</T>
+					</View>
+					<ArrowRight size={18} color={t.accent} />
+				</Press>
 			) : null}
 		</Screen>
 	);
 }
 
-function Streak({ days, lit }: { days: number; lit: boolean }) {
+function activity(item: TodayItem) {
+	return ACTIVITY[item.kind as keyof typeof ACTIVITY] ?? ACTIVITY.lesson;
+}
+
+function PlanRow({ item }: { item: TodayItem }) {
 	const t = useTheme();
-	const s = useSharedValue(1);
-	useEffect(() => {
-		if (lit) s.value = withRepeat(withSequence(withTiming(1.12, { duration: 700, easing: Easing.inOut(Easing.quad) }), withTiming(1, { duration: 700, easing: Easing.inOut(Easing.quad) })), -1);
-		else s.value = 1;
-	}, [lit]);
-	const a = useAnimatedStyle(() => ({ transform: [{ scale: s.value }] }));
+	const router = useRouter();
+	const { icon: Icon, label } = activity(item);
 	return (
-		<Card style={{ flex: 1, gap: 2 }}>
-			<T v="label">Streak</T>
-			<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-				<Animated.View style={a}>
-					<Flame size={26} color={lit ? t.amber : t.muted} fill={lit ? t.amber : 'transparent'} />
-				</Animated.View>
-				<RollingNumber value={days} style={{ fontFamily: fonts.display, fontSize: 28, color: t.fg }} />
-				<T v="small">day{days === 1 ? '' : 's'}</T>
+		<Press accessibilityRole="button" onPress={() => router.push(todayHref(item) as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 68, paddingVertical: 10, borderBottomWidth: hair, borderColor: t.line }}>
+			<Icon size={19} color={t.accent} />
+			<View style={{ flex: 1, gap: 3 }}>
+				<T v="small">{label} · {item.courseTitle}</T>
+				<T v="bodyStrong">{plain(item.title)}</T>
 			</View>
-			<T v="small">{lit ? 'Done for today. Nice.' : days ? 'Study today to keep it going' : 'Start one today'}</T>
-		</Card>
+			<T v="small">{item.minutes} min</T>
+			<ArrowRight size={16} color={t.muted} />
+		</Press>
 	);
 }

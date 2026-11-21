@@ -15,7 +15,7 @@ import {
 	type TextStyle,
 	type ViewStyle
 } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts, radius, useTheme, type HueSet } from '../lib/theme';
@@ -25,8 +25,8 @@ type V = 'display' | 'title' | 'h2' | 'h3' | 'body' | 'bodyStrong' | 'small' | '
 export function T({ v = 'body', color, style, ...p }: TextProps & { v?: V; color?: string }) {
 	const t = useTheme();
 	const base: Record<V, TextStyle> = {
-		display: { fontFamily: fonts.display, fontSize: 30, lineHeight: 34, letterSpacing: -1.2, color: t.fg },
-		title: { fontFamily: fonts.display, fontSize: 22, lineHeight: 27, letterSpacing: -0.7, color: t.fg },
+		display: { fontFamily: fonts.display, fontSize: 28, lineHeight: 37, letterSpacing: -1.1, color: t.fg },
+		title: { fontFamily: fonts.display, fontSize: 19, lineHeight: 26, letterSpacing: -0.55, color: t.fg },
 		h2: { fontFamily: fonts.bodyBold, fontSize: 19, lineHeight: 24, color: t.fg },
 		h3: { fontFamily: fonts.bodySemi, fontSize: 16, lineHeight: 21, color: t.fg },
 		body: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22, color: t.fg2 },
@@ -40,32 +40,19 @@ export function T({ v = 'body', color, style, ...p }: TextProps & { v?: V; color
 	return <Text {...p} style={[base[v], color ? { color } : null, style]} />;
 }
 
-const APressable = Animated.createAnimatedComponent(Pressable);
-
-/** Shrinks a touch on press, springs back. */
-export const Press = forwardRef<View, PressableProps & { style?: StyleProp<ViewStyle>; scaleTo?: number; haptic?: boolean }>(function Press(
-	{ style, scaleTo = 0.97, haptic, onPressIn, onPressOut, onPress, ...p },
+export const Press = forwardRef<View, PressableProps & { style?: StyleProp<ViewStyle>; haptic?: boolean }>(function Press(
+	{ style, haptic, onPress, ...p },
 	ref
 ) {
-	const s = useSharedValue(1);
-	const a = useAnimatedStyle(() => ({ transform: [{ scale: s.value }] }));
 	return (
-		<APressable
+		<Pressable
 			ref={ref}
 			{...p}
-			onPressIn={(e) => {
-				s.value = withTiming(scaleTo, { duration: 90 });
-				onPressIn?.(e);
-			}}
-			onPressOut={(e) => {
-				s.value = withSpring(1, { damping: 14, stiffness: 260 });
-				onPressOut?.(e);
-			}}
-			onPress={(e) => {
+			onPress={(event) => {
 				if (haptic) Haptics.selectionAsync().catch(() => {});
-				onPress?.(e);
+				onPress?.(event);
 			}}
-			style={[style, a]}
+			style={({ pressed }) => [style, pressed && { opacity: 0.76 }]}
 		/>
 	);
 });
@@ -108,7 +95,7 @@ export function Button({
 				{
 					height: small ? 40 : 52,
 					paddingHorizontal: small ? 16 : 22,
-					borderRadius: radius.pill,
+					borderRadius: radius.sm,
 					backgroundColor: bg,
 					alignItems: 'center',
 					justifyContent: 'center',
@@ -135,12 +122,7 @@ export function Card({ children, style, onPress, padded = true }: { children: Re
 			borderRadius: radius.md,
 			borderWidth: StyleSheet.hairlineWidth * 2,
 			borderColor: t.line,
-			padding: padded ? 18 : 0,
-			shadowColor: t.shadow.color,
-			shadowOpacity: t.shadow.opacity,
-			shadowRadius: t.shadow.radius,
-			shadowOffset: { width: 0, height: t.shadow.y },
-			elevation: t.name === 'day' ? 2 : 0
+			padding: padded ? 18 : 0
 		},
 		style
 	];
@@ -195,7 +177,7 @@ export function Screen({ children, scroll = true, padded = true, style, ...p }: 
 		<ScrollView
 			{...p}
 			style={[{ flex: 1, backgroundColor: t.bg }, style]}
-			contentContainerStyle={[{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 110, paddingHorizontal: padded ? 18 : 0 }, p.contentContainerStyle]}
+			contentContainerStyle={[{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 24, paddingHorizontal: padded ? 18 : 0 }, p.contentContainerStyle]}
 			keyboardShouldPersistTaps="handled"
 		>
 			{children}
@@ -243,7 +225,7 @@ export function Meter({ value, color, track, height = 6 }: { value: number; colo
 	const w = useSharedValue(0);
 	useEffect(() => {
 		w.value = withTiming(Math.max(0, Math.min(1, value)), { duration: 700 });
-	}, [value]);
+	}, [value, w]);
 	const a = useAnimatedStyle(() => ({ width: `${w.value * 100}%` }));
 	return (
 		<View style={{ height, borderRadius: height, backgroundColor: track ?? t.surface2, overflow: 'hidden' }}>

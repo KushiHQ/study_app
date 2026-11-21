@@ -12,7 +12,6 @@ export const BREAK_SECONDS = 5 * 60;
 const KEY = 'ks.focus';
 
 export type FocusPhase = 'idle' | 'focus' | 'break';
-export type OllieState = 'idle' | 'reading' | 'focus' | 'deep' | 'paused' | 'break';
 
 interface Saved {
 	phase: FocusPhase;
@@ -23,6 +22,10 @@ interface Saved {
 
 interface FocusState extends Saved {
 	note: string;
+	musicOn: boolean;
+	track: number;
+	toggleMusic(): void;
+	nextTrack(count: number): void;
 	start(): void;
 	pause(): void;
 	reset(): void;
@@ -59,6 +62,10 @@ export const useFocus = create<FocusState>((set, get) => {
 		endsAt: saved?.endsAt ?? null,
 		rounds: saved?.rounds ?? 0,
 		note: '',
+		musicOn: false,
+		track: 0,
+		toggleMusic: () => set((s) => ({ musicOn: !s.musicOn })),
+		nextTrack: (count) => set((s) => ({ track: (s.track + 1) % count })),
 		start() {
 			const s = get();
 			const phase = s.phase === 'idle' ? 'focus' : s.phase;
@@ -113,12 +120,4 @@ export const useFocus = create<FocusState>((set, get) => {
 	};
 });
 
-export const totalOf = (p: FocusPhase) => (p === 'break' ? BREAK_SECONDS : FOCUS_SECONDS);
 export const clockOf = (left: number) => `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
-export function ollieOf(s: Pick<Saved, 'phase' | 'left' | 'endsAt'>): OllieState {
-	if (s.phase === 'idle') return 'idle';
-	if (s.phase === 'break') return 'break';
-	if (!s.endsAt) return 'paused';
-	const done = FOCUS_SECONDS - s.left;
-	return done < 60 ? 'reading' : done < 10 * 60 ? 'focus' : 'deep';
-}

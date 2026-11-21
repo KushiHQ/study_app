@@ -1,12 +1,15 @@
 /**
  * Kushi Study app. Same Expo account, Apple team and Play account as Kushi Housing.
  * Env (EAS secrets / .env): EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
- * EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME, EXPO_PUBLIC_RC_IOS_KEY, EXPO_PUBLIC_RC_ANDROID_KEY,
+ * EXPO_PUBLIC_RC_IOS_KEY, EXPO_PUBLIC_RC_ANDROID_KEY,
  * EXPO_PUBLIC_SENTRY_DSN, SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN, EAS_PROJECT_ID.
  *
  * @param {import('expo/config').ConfigContext} context
  * @returns {import('expo/config').ExpoConfig}
  */
+const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() ||
+	'1052447000642-e8m3c6iidcivocoiv11f5e9bbb1csldr.apps.googleusercontent.com';
+
 export default ({ config }) => ({
 	...config,
 	name: 'Kushi Study',
@@ -46,6 +49,7 @@ export default ({ config }) => ({
 	},
 	extra: {
 		router: { origin: false },
+		googleIosClientId,
 		eas: { projectId: process.env.EAS_PROJECT_ID || '30354dfd-3e13-4e11-85ff-1ad8b778e531' }
 	},
 	owner: 'kushi-digital-innovations-ltd',
@@ -66,8 +70,7 @@ export default ({ config }) => ({
 		],
 		[
 			'@react-native-google-signin/google-signin',
-			// The iOS URL scheme is the reversed iOS client id; a placeholder keeps prebuild working until it exists.
-			{ iosUrlScheme: process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME || 'com.googleusercontent.apps.kushi-study-placeholder' }
+			{ iosUrlScheme: googleIosClientId.split('.').reverse().join('.') }
 		],
 		[
 			'expo-splash-screen',

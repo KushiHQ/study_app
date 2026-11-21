@@ -1,27 +1,24 @@
-// You: profile, look, devices, plan, sign out and delete account.
 import { useState } from 'react';
-import { Alert, Linking, Text, TextInput, View } from 'react-native';
+import { Alert, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useMutation, useQuery } from 'urql';
+import { useQuery } from 'urql';
 import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
-import { ChevronRight, Gift, LogOut, Monitor, Moon, Smartphone, Sun, Upload, Lightbulb } from 'lucide-react-native';
-import { ACCOUNT, BILLING, SIGN_OUT_DEVICE } from '../../lib/api/queries';
-import type { Access, Device } from '../../lib/api/types';
-import { WEB_URL, errorText, gql } from '../../lib/api/client';
+import { ChevronRight, Gift, LogOut, Monitor, Moon, Sun, Upload, Lightbulb } from 'lucide-react-native';
+import { BILLING } from '../../lib/api/queries';
+import type { Access } from '../../lib/api/types';
+import { errorText, gql } from '../../lib/api/client';
 import { useSession } from '../../lib/session';
 import { unregisterPush } from '../../lib/services';
 import { useThemeChoice, fonts, radius, useTheme, type ThemeChoice } from '../../lib/theme';
 import { daysLeft } from '../../lib/study/trial';
-import { Button, Card, Eyebrow, Pill, Press, Screen, T, hair } from '../../components/ui';
+import { Button, Card, Eyebrow, Press, Screen, T, hair } from '../../components/ui';
 
 export default function Account() {
 	const t = useTheme();
 	const router = useRouter();
 	const user = useSession((s) => s.user);
 	const { choice, set: setChoice } = useThemeChoice();
-	const [{ data }, refetch] = useQuery<{ devices: Device[] }>({ query: ACCOUNT, requestPolicy: 'cache-and-network' });
 	const [{ data: bd }] = useQuery<{ access: Access }>({ query: BILLING, requestPolicy: 'cache-and-network' });
-	const [, signOutDevice] = useMutation(SIGN_OUT_DEVICE);
 	const [deleting, setDeleting] = useState(false);
 	const [confirm, setConfirm] = useState('');
 	const [busy, setBusy] = useState(false);
@@ -39,19 +36,6 @@ export default function Account() {
 				onPress: async () => {
 					await unregisterPush();
 					await useSession.getState().signOut(true);
-				}
-			}
-		]);
-
-	const removeDevice = (d: Device) =>
-		Alert.alert('Sign out this device?', d.label, [
-			{ text: 'Cancel', style: 'cancel' },
-			{
-				text: 'Sign out',
-				style: 'destructive',
-				onPress: async () => {
-					await signOutDevice({ id: d.id });
-					refetch({ requestPolicy: 'network-only' });
 				}
 			}
 		]);
@@ -79,7 +63,7 @@ export default function Account() {
 	return (
 		<Screen>
 			<Eyebrow>Account</Eyebrow>
-			<Animated.View entering={FadeInDown.springify().damping(18)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+			<Animated.View entering={FadeInDown.duration(180)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 }}>
 				<View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
 					<Text style={{ fontFamily: fonts.display, fontSize: 24, color: t.accent }}>{(user?.name || user?.email || '?').slice(0, 1).toUpperCase()}</Text>
 				</View>
@@ -95,7 +79,7 @@ export default function Account() {
 
 			<View style={{ gap: 14 }}>
 				<Card padded={false}>
-					<Row label="Department and level" value={[user?.department?.name, user?.level?.name].filter(Boolean).join(' · ') || 'Not set'} onPress={() => router.push('/onboarding')} />
+					<Row label="Department and level" value={[user?.department?.name, user?.level?.name].filter(Boolean).join(' · ') || 'Not set'} onPress={() => router.push({ pathname: '/onboarding', params: { edit: '1' } })} />
 					<Row label="Plan" value={planLine} onPress={() => router.push('/plan')} last />
 				</Card>
 
@@ -120,31 +104,11 @@ export default function Account() {
 					</View>
 				</Section>
 
-				<Section title="Devices">
-					<T v="small" style={{ marginBottom: 8 }}>
-						You can be signed in on two devices at once.
-					</T>
+				<Section title="Community">
 					<Card padded={false}>
-						{(data?.devices ?? []).map((d, i, all) => (
-							<Animated.View key={d.id} layout={LinearTransition} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderBottomWidth: i < all.length - 1 ? hair : 0, borderColor: t.line }}>
-								<Smartphone size={18} color={t.fg2} />
-								<View style={{ flex: 1 }}>
-									<T v="bodyStrong" numberOfLines={1}>
-										{d.label}
-									</T>
-									<T v="small">{d.current ? 'This device' : `Last used ${new Date(d.lastUsedAt).toLocaleDateString()}`}</T>
-								</View>
-								{d.current ? <Pill label="Current" tone="accent" /> : <Button small kind="ghost" title="Sign out" onPress={() => removeDevice(d)} />}
-							</Animated.View>
-						))}
-					</Card>
-				</Section>
-
-				<Section title="More on the website">
-					<Card padded={false}>
-						<Row icon={<Gift size={18} color={t.amber} />} label="Invite friends" value="Earn when they pay" onPress={() => Linking.openURL(`${WEB_URL}/invite`)} />
-						<Row icon={<Upload size={18} color={t.amber} />} label="Send course material" onPress={() => Linking.openURL(`${WEB_URL}/contribute`)} />
-						<Row icon={<Lightbulb size={18} color={t.amber} />} label="Request a course" onPress={() => Linking.openURL(`${WEB_URL}/request`)} last />
+						<Row icon={<Gift size={18} color={t.amber} />} label="Invite friends" value="Share your link and view rewards" onPress={() => router.push('/invite')} />
+						<Row icon={<Upload size={18} color={t.amber} />} label="Send course material" onPress={() => router.push('/contribute')} />
+						<Row icon={<Lightbulb size={18} color={t.amber} />} label="Request a course" onPress={() => router.push('/request')} last />
 					</Card>
 				</Section>
 
@@ -156,7 +120,7 @@ export default function Account() {
 							<T v="h3" color={t.danger}>
 								Delete your account
 							</T>
-							<T v="small">This removes your progress, plans and devices for good. It can’t be undone. A store subscription has to be cancelled in the App Store or Google Play as well.</T>
+							<T v="small">This permanently removes your account, study progress and plans. Cancel any active subscription in the App Store or Google Play as well.</T>
 							<T v="small">Type your email to confirm.</T>
 							<TextInput
 								value={confirm}
@@ -199,7 +163,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Row({ label, value, onPress, last, icon }: { label: string; value?: string; onPress: () => void; last?: boolean; icon?: React.ReactNode }) {
 	const t = useTheme();
 	return (
-		<Press onPress={onPress} scaleTo={0.99} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderBottomWidth: last ? 0 : hair, borderColor: t.line }}>
+		<Press onPress={onPress} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderBottomWidth: last ? 0 : hair, borderColor: t.line }}>
 			{icon}
 			<View style={{ flex: 1 }}>
 				<T v="bodyStrong">{label}</T>

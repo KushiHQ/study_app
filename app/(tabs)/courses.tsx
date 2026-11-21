@@ -10,7 +10,7 @@ import type { CourseCard as Card, Department, Level } from '../../lib/api/types'
 import { errorText } from '../../lib/api/client';
 import { useSession } from '../../lib/session';
 import { fonts, radius, useTheme } from '../../lib/theme';
-import { Button, Chip, ErrorBox, Press, T, hair } from '../../components/ui';
+import { Button, Chip, ErrorBox, Press, Reveal, T, hair } from '../../components/ui';
 import { CourseCard } from '../../components/CourseCard';
 
 export default function Courses() {
@@ -42,10 +42,10 @@ export default function Courses() {
 
 	const header = (
 		<View style={{ gap: 14, marginBottom: 14 }}>
-			<View style={{ marginTop: 8 }}>
+			<Reveal style={{ marginTop: 8 }}>
 				<T v="display" accessibilityRole="header">Courses</T>
-			</View>
-			<View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, height: 50, borderRadius: radius.sm, backgroundColor: t.surface, borderWidth: hair, borderColor: t.line2, paddingHorizontal: 16 }}>
+			</Reveal>
+			<Reveal follow style={{ flexDirection: 'row', alignItems: 'center', gap: 10, height: 50, borderRadius: radius.sm, backgroundColor: t.surface, borderWidth: hair, borderColor: t.line2, paddingHorizontal: 16 }}>
 				<Search size={18} color={t.muted} />
 				<TextInput
 					value={q}
@@ -62,7 +62,7 @@ export default function Courses() {
 						<X size={18} color={t.muted} />
 					</Press>
 				) : null}
-			</View>
+			</Reveal>
 			{debounced.length < 2 ? (
 				<>
 					<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>

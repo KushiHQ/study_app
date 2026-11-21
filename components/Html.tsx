@@ -3,10 +3,12 @@
 import { memo, useMemo, type ReactNode } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, View, type TextStyle } from 'react-native';
 import { SvgXml } from 'react-native-svg';
-import { parse, type HNode } from '../lib/html';
+import { parse, textOf, type HNode } from '../lib/html';
+import { highlightCode } from '../lib/highlight';
 import { splitMath, texToSvg } from '../lib/mathjax';
 import { fonts, useTheme, type HueSet, type Palette } from '../lib/theme';
 import { SvgTree } from './SvgTree';
+import { CodeRuns } from './CodeRuns';
 
 const BLOCK = new Set(['p', 'ul', 'ol', 'li', 'table', 'pre', 'blockquote', 'div', 'svg', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'figure', 'hr', 'dl', 'section', 'aside', 'details']);
 
@@ -236,13 +238,7 @@ function block(n: HNode, c: Ctx, key: string): ReactNode {
 				</View>
 			);
 		case 'pre':
-			return (
-				<ScrollView key={key} horizontal style={{ backgroundColor: t.surface2, borderRadius: 12 }} contentContainerStyle={{ padding: 12 }}>
-					<Text style={{ fontFamily: fonts.mono, fontSize: 13, lineHeight: 19, color: t.fg }} selectable>
-						{textOnly(n)}
-					</Text>
-				</ScrollView>
-			);
+			return <FencedCode key={key} node={n} palette={t} />;
 		case 'hr':
 			return <View key={key} style={{ height: StyleSheet.hairlineWidth * 2, backgroundColor: t.line2 }} />;
 		case 'table':
@@ -265,9 +261,19 @@ function marker(i: number, type?: string) {
 	return String(i);
 }
 
-function textOnly(n: HNode): string {
-	if (n.name === '#text') return n.text ?? '';
-	return n.children.map(textOnly).join('');
+function FencedCode({ node, palette }: { node: HNode; palette: Palette }) {
+	const runs = useMemo(() => {
+		const code = node.children.find((child) => child.name === 'code');
+		const language = /(?:^|\s)language-([^\s]+)/.exec(code?.attrs.class ?? node.attrs.class ?? '')?.[1];
+		return highlightCode(textOf(node.children), language, node.children);
+	}, [node]);
+	return (
+		<ScrollView horizontal style={{ backgroundColor: palette.surface2, borderRadius: 12 }} contentContainerStyle={{ padding: 12 }}>
+			<Text style={{ fontFamily: fonts.mono, fontSize: 13, lineHeight: 19, color: palette.fg }} selectable>
+				<CodeRuns runs={runs} palette={palette} />
+			</Text>
+		</ScrollView>
+	);
 }
 
 function Table({ n, c }: { n: HNode; c: Ctx }) {

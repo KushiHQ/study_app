@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Alert, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from 'urql';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 import { ChevronRight, Gift, LogOut, Monitor, Moon, Sun, Upload, Lightbulb } from 'lucide-react-native';
 import { BILLING } from '../../lib/api/queries';
 import type { Access } from '../../lib/api/types';
@@ -11,7 +11,7 @@ import { useSession } from '../../lib/session';
 import { unregisterPush } from '../../lib/services';
 import { useThemeChoice, fonts, radius, useTheme, type ThemeChoice } from '../../lib/theme';
 import { daysLeft } from '../../lib/study/trial';
-import { Button, Card, Eyebrow, Press, Screen, T, hair } from '../../components/ui';
+import { Button, Card, Eyebrow, Press, Reveal, Screen, T, hair } from '../../components/ui';
 
 export default function Account() {
 	const t = useTheme();
@@ -63,7 +63,7 @@ export default function Account() {
 	return (
 		<Screen>
 			<Eyebrow>Account</Eyebrow>
-			<Animated.View entering={FadeInDown.duration(180)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+			<Reveal style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 }}>
 				<View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: t.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
 					<Text style={{ fontFamily: fonts.display, fontSize: 24, color: t.accent }}>{(user?.name || user?.email || '?').slice(0, 1).toUpperCase()}</Text>
 				</View>
@@ -75,7 +75,7 @@ export default function Account() {
 						{user?.email}
 					</T>
 				</View>
-			</Animated.View>
+			</Reveal>
 
 			<View style={{ gap: 14 }}>
 				<Card padded={false}>

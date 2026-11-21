@@ -1,25 +1,29 @@
 // One lesson block → one native view (study_web_app src/lib/ui/blocks/Blocks.svelte).
-import { memo, useMemo, useState, type ReactNode } from 'react';
+import { memo, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown, LinearTransition } from 'react-native-reanimated';
+import Animated, { Easing, FadeInDown, ReduceMotion, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { Copy, Check, Quote, ChevronRight, RotateCcw, Puzzle } from 'lucide-react-native';
 import type { Block } from '../../lib/api/types';
-import { parse, type HNode } from '../../lib/html';
+import { parse } from '../../lib/html';
+import { highlightCode } from '../../lib/highlight';
 import { fonts, radius, useTheme, type HueSet } from '../../lib/theme';
 import { DisplayMath, Grid, Html, useHtmlCtx } from '../Html';
+import { CodeRuns } from '../CodeRuns';
 import { Press, T, hair } from '../ui';
 import { Diagram } from './Diagram';
 import { Figure } from './Figure';
 import { Trace } from './Trace';
 import { Plot } from './Plot';
 
-export const Blocks = memo(function Blocks({ blocks, hue, onReport }: { blocks: Block[]; hue: HueSet; onReport?: (key: string, what: string) => void }) {
+type RevealStep = (step: View) => void;
+
+export const Blocks = memo(function Blocks({ blocks, hue, onReport, onStepReveal }: { blocks: Block[]; hue: HueSet; onReport?: (key: string, what: string) => void; onStepReveal?: RevealStep }) {
 	return (
 		<View style={{ gap: 22 }}>
 			{blocks.map((b, i) => (
-				<BlockView key={b.key ?? i} b={b} hue={hue} onLongPress={onReport && b.type !== 'heading' ? () => onReport(b.key ?? `#${i + 1}`, KIND[b.type] ?? 'this part') : undefined} />
+				<BlockView key={b.key ?? i} b={b} hue={hue} onStepReveal={onStepReveal} onLongPress={onReport && b.type !== 'heading' ? () => onReport(b.key ?? `#${i + 1}`, KIND[b.type] ?? 'this part') : undefined} />
 			))}
 		</View>
 	);
@@ -27,7 +31,7 @@ export const Blocks = memo(function Blocks({ blocks, hue, onReport }: { blocks: 
 
 export const KIND: Record<string, string> = { text: 'a paragraph', analogy: 'the analogy', bigidea: 'the big idea', steps: 'the worked example', compare: 'the table', diagram: 'the diagram', figure: 'the picture', formula: 'the formula', code: 'the code', think: 'the think-about-it question', mnemonic: 'the memory trick', story: 'the story', pitfall: 'the warning', widget: 'the interactive piece', trace: 'the walk-through', plot: 'the graph' };
 
-function BlockView({ b, hue, onLongPress }: { b: Block; hue: HueSet; onLongPress?: () => void }) {
+function BlockView({ b, hue, onLongPress, onStepReveal }: { b: Block; hue: HueSet; onLongPress?: () => void; onStepReveal?: RevealStep }) {
 	const t = useTheme();
 	const body = (() => {
 		switch (b.type) {
@@ -51,7 +55,7 @@ function BlockView({ b, hue, onLongPress }: { b: Block; hue: HueSet; onLongPress
 					</View>
 				);
 			case 'steps':
-				return <Steps title={b.title} intro={b.intro} steps={b.steps} hue={hue} />;
+				return <Steps title={b.title} intro={b.intro} steps={b.steps} hue={hue} onStepReveal={onStepReveal} />;
 			case 'compare':
 				return <Compare title={b.title} headers={b.headers} rows={b.rows} hue={hue} />;
 			case 'formula':
@@ -114,9 +118,17 @@ function Callout({ emoji, eyebrow, title, html, hue, bg, eyebrowColor }: { emoji
 	);
 }
 
-function Steps({ title, intro, steps, hue }: { title: string; intro?: string; steps: { title: string; html: string }[]; hue: HueSet }) {
+const stepEase = Easing.bezier(0.16, 1, 0.3, 1);
+const stepEntrance = FadeInDown.duration(550).easing(stepEase)
+	.withInitialValues({ opacity: 0, transform: [{ translateY: 14 }] })
+	.reduceMotion(ReduceMotion.System);
+const stepProgressTiming = { duration: 400, easing: stepEase, reduceMotion: ReduceMotion.System };
+
+function Steps({ title, intro, steps, hue, onStepReveal }: { title: string; intro?: string; steps: { title: string; html: string }[]; hue: HueSet; onStepReveal?: RevealStep }) {
 	const t = useTheme();
 	const [shown, setShown] = useState(1);
+	const pendingScroll = useRef<number | null>(null);
+	const newestStep = useRef<View>(null);
 	const all = shown >= steps.length;
 	return (
 		<Box hue={hue}>
@@ -128,9 +140,15 @@ function Steps({ title, intro, steps, hue }: { title: string; intro?: string; st
 				</View>
 			</View>
 			{intro ? <Html html={intro} hue={hue} style={{ fontSize: 16, lineHeight: 25 }} /> : null}
-			<View style={{ gap: 14 }}>
+			<View>
 				{steps.slice(0, shown).map((s, i) => (
-					<Animated.View key={i} entering={FadeIn.duration(350)} layout={LinearTransition} style={{ flexDirection: 'row', gap: 12 }}>
+					<Animated.View key={i} entering={stepEntrance} style={{ flexDirection: 'row', gap: 12, paddingVertical: 14, borderTopWidth: hair, borderStyle: 'dashed', borderColor: t.line }}
+						ref={i === shown - 1 ? newestStep : undefined} collapsable={false}
+						onLayout={i === shown - 1 ? () => {
+							if (pendingScroll.current !== i || !newestStep.current) return;
+							pendingScroll.current = null;
+							onStepReveal?.(newestStep.current);
+						} : undefined}>
 						<View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: hue.soft, alignItems: 'center', justifyContent: 'center' }}>
 							<Text style={{ fontFamily: fonts.readHeavy, color: hue.ink }}>{i + 1}</Text>
 						</View>
@@ -141,23 +159,37 @@ function Steps({ title, intro, steps, hue }: { title: string; intro?: string; st
 					</Animated.View>
 				))}
 			</View>
-			<View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 }}>
-				<View style={{ flexDirection: 'row', gap: 4, flex: 1 }}>
+			<View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, paddingTop: 12, borderTopWidth: hair, borderStyle: 'dashed', borderColor: t.line }}>
+				<View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, flexGrow: 1 }}>
 					{steps.map((_, i) => (
-						<View key={i} style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: i < shown ? hue.base : t.line2 }} />
+						<StepDot key={i} shown={i < shown} activeColor={hue.base} inactiveColor={t.line2} />
 					))}
 				</View>
 				{!all ? (
 					<>
-						<SmallBtn label="Show all" onPress={() => setShown(steps.length)} />
-						<SmallBtn label="Next step" strong hue={hue} icon={<ChevronRight size={16} color={hue.ink} />} onPress={() => setShown((n) => n + 1)} />
+						<SmallBtn label="Show all" onPress={() => { pendingScroll.current = null; setShown(steps.length); }} />
+						<SmallBtn label="Next step" strong hue={hue} icon={<ChevronRight size={16} color={hue.ink} />} onPress={() => {
+							pendingScroll.current = shown;
+							setShown(shown + 1);
+						}} />
 					</>
 				) : (
-					<SmallBtn label="Replay" icon={<RotateCcw size={14} color={t.fg2} />} onPress={() => setShown(1)} />
+					<>
+						<T v="bodyStrong" color={hue.ink}>That’s the whole thing</T>
+						<SmallBtn label="Replay" icon={<RotateCcw size={14} color={t.fg2} />} onPress={() => { pendingScroll.current = null; setShown(1); }} />
+					</>
 				)}
 			</View>
 		</Box>
 	);
+}
+
+function StepDot({ shown, activeColor, inactiveColor }: { shown: boolean; activeColor: string; inactiveColor: string }) {
+	const style = useAnimatedStyle(() => ({
+		width: withTiming(shown ? 18 : 8, stepProgressTiming),
+		backgroundColor: withTiming(shown ? activeColor : inactiveColor, stepProgressTiming)
+	}));
+	return <Animated.View style={[{ height: 8, borderRadius: 4 }, style]} />;
 }
 
 export function SmallBtn({ label, onPress, strong, hue, icon }: { label: string; onPress: () => void; strong?: boolean; hue?: HueSet; icon?: ReactNode }) {
@@ -190,34 +222,10 @@ function Compare({ title, headers, rows, hue }: { title: string; headers: string
 	);
 }
 
-const HL: Record<string, keyof ReturnType<typeof codeColors>> = {
-	keyword: 'k', 'selector-tag': 'k', doctag: 'k', k: 'k', built_in: 'b', type: 'b', title: 'f', 'title.function': 'f', 'title.class': 'b',
-	string: 's', regexp: 's', 'template-tag': 's', addition: 's', s: 's', comment: 'c', quote: 'c', c: 'c',
-	number: 'n', literal: 'n', meta: 'n', n: 'n', symbol: 'b', bullet: 'b', link: 'b', name: 'k', attr: 'f', 'attr-name': 'f', a: 'n', params: 'p', variable: 'p'
-};
-function codeColors(dark: boolean) {
-	return dark
-		? { k: '#c4a7ff', s: '#9be5be', c: '#7d88a6', n: '#fdc6a9', f: '#acd0fd', b: '#f2dc93', p: '#e6ebf5' }
-		: { k: '#6d28d9', s: '#0f7a4f', c: '#7a8299', n: '#b45309', f: '#1d4ed8', b: '#9a3f14', p: '#1f2937' };
-}
-
 function Code({ lang, code, html, caption, hue }: { lang: string; code: string; html?: string; caption?: string; hue: HueSet }) {
 	const t = useTheme();
 	const [copied, setCopied] = useState(false);
-	const colors = codeColors(t.name === 'night');
-	const nodes = useMemo(() => (html ? parse(html) : null), [html]);
-	const draw = (ns: HNode[], color?: string): ReactNode[] =>
-		ns.map((n, i) => {
-			if (n.name === '#text') return n.text;
-			const cls = (n.attrs.class ?? '').split(/\s+/).map((c) => c.replace(/^hljs-/, ''));
-			const key = cls.map((c) => HL[c]).find(Boolean);
-			const col = key ? colors[key] : color;
-			return (
-				<Text key={i} style={{ color: col, fontStyle: key === 'c' ? 'italic' : 'normal' }}>
-					{draw(n.children, col)}
-				</Text>
-			);
-		});
+	const runs = useMemo(() => highlightCode(code.replace(/^\n+|\s+$/g, ''), lang, html ? parse(html) : undefined), [code, lang, html]);
 	return (
 		<View style={{ gap: 8 }}>
 			<View style={{ backgroundColor: t.name === 'night' ? '#0b1122' : '#f6f8fc', borderRadius: radius.md, borderWidth: hair, borderColor: t.line2, overflow: 'hidden' }}>
@@ -239,8 +247,8 @@ function Code({ lang, code, html, caption, hue }: { lang: string; code: string; 
 					</Press>
 				</View>
 				<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ padding: 14 }}>
-					<Text selectable style={{ fontFamily: fonts.mono, fontSize: 13, lineHeight: 20, color: colors.p }}>
-						{nodes ? draw(nodes) : code.replace(/^\n+|\s+$/g, '')}
+					<Text selectable style={{ fontFamily: fonts.mono, fontSize: 13, lineHeight: 20, color: t.fg }}>
+						<CodeRuns runs={runs} palette={t} />
 					</Text>
 				</ScrollView>
 			</View>

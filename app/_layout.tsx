@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider as Urql } from 'urql';
 import * as Sentry from '@sentry/react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 import { useFonts } from 'expo-font';
 import { Unbounded_500Medium, Unbounded_600SemiBold } from '@expo-google-fonts/unbounded';
 import { InterTight_400Regular, InterTight_500Medium, InterTight_600SemiBold, InterTight_700Bold } from '@expo-google-fonts/inter-tight';
@@ -70,6 +71,8 @@ function RootLayout() {
 
 function Shell() {
 	const t = useTheme();
+	const reduceMotion = useReducedMotion();
+	const activityAnimation = reduceMotion ? 'none' : 'slide_from_bottom';
 	const status = useSession((s) => s.status);
 	const user = useSession((s) => s.user);
 	const segments = useSegments();
@@ -89,15 +92,15 @@ function Shell() {
 		<View style={{ flex: 1, backgroundColor: t.bg }}>
 			<StatusBar style={t.statusBar} />
 			{status === 'signedIn' ? <FocusSession /> : null}
-			<Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, animation: 'fade' }}>
+			<Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, animation: reduceMotion ? 'none' : 'fade', animationDuration: 230 }}>
 				<Stack.Screen name="(tabs)" />
-				<Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-				<Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
+				<Stack.Screen name="(auth)" />
+				<Stack.Screen name="onboarding" />
 				<Stack.Screen name="c/[slug]/index" />
 				<Stack.Screen name="c/[slug]/l/[lessonId]" />
-				<Stack.Screen name="c/[slug]/quiz/[quizId]" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
-				<Stack.Screen name="c/[slug]/cards" options={{ animation: 'slide_from_bottom' }} />
-				<Stack.Screen name="c/[slug]/practice" options={{ animation: 'slide_from_bottom' }} />
+				<Stack.Screen name="c/[slug]/quiz/[quizId]" options={{ animation: activityAnimation, gestureEnabled: false }} />
+				<Stack.Screen name="c/[slug]/cards" options={{ animation: activityAnimation }} />
+				<Stack.Screen name="c/[slug]/practice" options={{ animation: activityAnimation }} />
 				<Stack.Screen name="plan" options={{ presentation: 'modal' }} />
 			</Stack>
 		</View>

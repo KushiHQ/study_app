@@ -12,7 +12,10 @@ on:
 jobs:
   build:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[ios]')
-    runs-on: xcode-27
+    # Expo SDK 54 still uses the application lifecycle. Upgrade Expo for UIScene
+    # support before switching to Xcode 27 for Apple's April 2027 upload deadline.
+    # https://github.com/expo/fyi/blob/main/ios-scene-lifecycle.md
+    runs-on: macos-15
     environment: production
     env:
       LANG: en_US.UTF-8
@@ -21,15 +24,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify iOS SDK version
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.2'
+
+      - name: Show Xcode and iOS SDK versions
         run: |
           xcodebuild -version
-          sdk_version=$(xcrun --sdk iphoneos --show-sdk-version)
-          echo "iOS SDK $sdk_version"
-          if [ "${sdk_version%%.*}" -lt 27 ]; then
-            echo "::error::App Store Connect requires the iOS 27 SDK or later."
-            exit 1
-          fi
+          xcrun --sdk iphoneos --show-sdk-version
 
       - uses: actions/setup-node@v4
         with:

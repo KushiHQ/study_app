@@ -15,7 +15,7 @@ import {
 	type TextStyle,
 	type ViewStyle
 } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, FadeInDown, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts, radius, useTheme, type HueSet } from '../lib/theme';
@@ -167,6 +167,16 @@ export function Pill({ label, tone = 'muted' }: { label: string; tone?: 'muted' 
 			<Text style={{ fontFamily: fonts.mono, fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', color: c[1] }}>{label}</Text>
 		</View>
 	);
+}
+
+const sectionEntrance = (delay: number) => FadeInDown.duration(220).delay(delay).easing(Easing.out(Easing.cubic))
+	.withInitialValues({ opacity: 0.65, transform: [{ translateY: 6 }] })
+	.reduceMotion(ReduceMotion.System);
+const firstEntrance = sectionEntrance(0);
+const followingEntrance = sectionEntrance(45);
+
+export function Reveal({ children, style, follow }: { children: ReactNode; style?: StyleProp<ViewStyle>; follow?: boolean }) {
+	return <Animated.View entering={follow ? followingEntrance : firstEntrance} style={style}>{children}</Animated.View>;
 }
 
 export function Screen({ children, scroll = true, padded = true, style, ...p }: ScrollViewProps & { scroll?: boolean; padded?: boolean; children: ReactNode }) {

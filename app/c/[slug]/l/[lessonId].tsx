@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { AppState, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useClient, useQuery } from 'urql';
-import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { ArrowLeft, ArrowRight, Check, Clock, Lock, RotateCcw } from 'lucide-react-native';
@@ -19,7 +19,7 @@ import { Html } from '../../../../components/Html';
 import { QuestionCard } from '../../../../components/QuestionCard';
 import { FocusControls } from '../../../../components/FocusControls';
 import { ReportSheet, type ReportTarget } from '../../../../components/ReportSheet';
-import { Button, Card, ErrorBox, Loading, Press, T, hair } from '../../../../components/ui';
+import { Button, Card, ErrorBox, Loading, Press, Reveal, T, hair } from '../../../../components/ui';
 
 type CourseData = { course: CourseOutline; courseProgress: CourseProgress | null };
 
@@ -36,6 +36,7 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 	const router = useRouter();
 	const client = useClient();
 	const insets = useSafeAreaInsets();
+	const reduceMotion = useReducedMotion();
 	const overlay = useProgress((s) => s.completed);
 
 	const [{ data: cd }] = useQuery<CourseData>({ query: COURSE, variables: { slug, signedIn: true, preview: null } });
@@ -55,6 +56,8 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 	const changingLesson = useRef(false);
 
 	// ---- reading progress
+	const scroll = useRef<ComponentRef<typeof Animated.ScrollView>>(null);
+	const viewportHeight = useRef(0);
 	const scrollY = useSharedValue(0);
 	const maxY = useSharedValue(1);
 	const onScroll = useAnimatedScrollHandler((e) => {
@@ -62,6 +65,24 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 		maxY.value = Math.max(1, e.contentSize.height - e.layoutMeasurement.height);
 	});
 	const barStyle = useAnimatedStyle(() => ({ width: `${Math.min(1, Math.max(0, scrollY.value / maxY.value)) * 100}%` }));
+	const revealStep = (step: View) => {
+		const reader = scroll.current;
+		const content = reader?.getInnerViewNode();
+		if (!reader || !content) return;
+		step.measureLayout(content, (_x, top, _width, height) => {
+			const viewport = viewportHeight.current;
+			if (viewport <= 0) return;
+			const currentY = scrollY.get();
+			const padding = 12;
+			const bottom = top + height + padding;
+			const targetY = height + padding * 2 > viewport || top < currentY
+				? top - padding
+				: bottom - viewport;
+			if (top < currentY || bottom > currentY + viewport) {
+				reader.scrollTo({ y: Math.max(0, targetY), animated: !reduceMotion });
+			}
+		});
+	};
 
 	// ---- time on lesson: counted while the app is in front, sent each minute
 	const secs = useRef(0);
@@ -157,8 +178,9 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 					)}
 				</View>
 			) : (
-				<Animated.ScrollView onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 30, paddingBottom: insets.bottom + 36, gap: 26 }}>
-					<View style={{ gap: 10 }}>
+				<Animated.ScrollView ref={scroll} onLayout={({ nativeEvent }) => { viewportHeight.current = nativeEvent.layout.height; }}
+					onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 30, paddingBottom: insets.bottom + 36, gap: 26 }}>
+					<Reveal style={{ gap: 10 }}>
 						<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
 							<Clock size={13} color={t.muted} />
 							<T v="small">{lesson.minutes} min read</T>
@@ -173,15 +195,15 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 						</View>
 						<Text style={{ fontFamily: fonts.serif, fontSize: 30, lineHeight: 36, color: t.fg, letterSpacing: -0.5 }}>{plain(lesson.title)}</Text>
 						{lesson.tagline ? <Text style={{ fontFamily: fonts.serifItalic, fontSize: 18, lineHeight: 25, color: t.fg2 }}>{plain(lesson.tagline)}</Text> : null}
-					</View>
+					</Reveal>
 
 					{lesson.hook ? (
-						<View style={{ borderLeftWidth: 2, borderLeftColor: t.accent, paddingLeft: 16 }}>
+						<Reveal follow style={{ borderLeftWidth: 2, borderLeftColor: t.accent, paddingLeft: 16 }}>
 							<Html html={lesson.hook} hue={hue} style={{ fontSize: 18, lineHeight: 28 }} />
-						</View>
+						</Reveal>
 					) : null}
 
-					<Blocks blocks={lesson.blocks} hue={hue} onReport={(blockKey, what) => setReport({ courseSlug: slug, lessonId: id, blockKey, what })} />
+					<Blocks blocks={lesson.blocks} hue={hue} onStepReveal={revealStep} onReport={(blockKey, what) => setReport({ courseSlug: slug, lessonId: id, blockKey, what })} />
 
 					{hasRecap ? (
 						<View style={{ backgroundColor: hue.wash, borderRadius: radius.md, padding: 18, gap: 10 }}>

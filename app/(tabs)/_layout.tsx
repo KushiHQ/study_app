@@ -3,6 +3,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { PlatformPressable } from '@react-navigation/elements';
 import { useLinkBuilder } from '@react-navigation/native';
 import { Tabs } from 'expo-router';
+import { useReducedMotion } from 'react-native-reanimated';
 import { BookOpen, CalendarDays, UserRound } from 'lucide-react-native';
 import { alpha, fonts, radius, useTheme } from '../../lib/theme';
 import { hair } from '../../components/ui';
@@ -14,8 +15,9 @@ const ITEMS = {
 } as const;
 
 export default function TabsLayout() {
+	const reduceMotion = useReducedMotion();
 	return (
-		<Tabs tabBar={(props) => <StudyDock {...props} />} screenOptions={{ headerShown: false, animation: 'none' }}>
+		<Tabs tabBar={(props) => <StudyDock {...props} />} screenOptions={{ headerShown: false, animation: reduceMotion ? 'none' : 'fade' }}>
 			<Tabs.Screen name="index" options={{ title: ITEMS.index.label }} />
 			<Tabs.Screen name="courses" options={{ title: ITEMS.courses.label }} />
 			<Tabs.Screen name="account" options={{ title: ITEMS.account.label }} />

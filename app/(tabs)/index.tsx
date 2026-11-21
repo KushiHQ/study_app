@@ -13,7 +13,7 @@ import { useSession } from '../../lib/session';
 import { daysLeft } from '../../lib/study/trial';
 import { useProgress } from '../../lib/progress';
 import { alpha, radius, useTheme, useTint } from '../../lib/theme';
-import { Button, Card, ErrorBox, Meter, Press, Screen, T, hair } from '../../components/ui';
+import { Button, Card, ErrorBox, Meter, Press, Reveal, Screen, T, hair } from '../../components/ui';
 import { CourseCard } from '../../components/CourseCard';
 import { CourseHalo } from '../../components/CourseHalo';
 
@@ -60,32 +60,34 @@ export default function TodayScreen() {
 	return (
 		<Screen refreshControl={<RefreshControl refreshing={fetching && !!data} tintColor={t.accent} onRefresh={() => refetch({ requestPolicy: 'network-only' })} />}
 			contentContainerStyle={{ gap: 28, paddingHorizontal: 22, width: '100%', maxWidth: 720, alignSelf: 'center' }}>
-			<View style={{ gap: 9, paddingTop: 12 }}>
+			<Reveal style={{ gap: 9, paddingTop: 12 }}>
 				<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
 					<CalendarDays color={t.accent} size={15} />
 					<T v="label">{date}</T>
 				</View>
 				<T v="display" accessibilityRole="header">{greeting()}{firstName ? `, ${firstName}` : ''}.</T>
-			</View>
+			</Reveal>
 			{error && !data ? <ErrorBox message={errorText(error)} onRetry={() => refetch({ requestPolicy: 'network-only' })} /> : null}
 			{fetching && !data ? <T v="small">Loading your study plan…</T> : null}
 			{data ? (
-				<Card style={{ padding: 19, marginTop: firstCourse ? 10 : 0, backgroundColor: leadBackground, borderColor: alpha(leadColor, 0.32), gap: 12 }}>
-					<View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { borderRadius: radius.md, overflow: 'hidden' }]}>
-						<CourseHalo color={leadColor} />
-					</View>
-					{firstCourse ? <Image source={require('../../assets/ollie/notes.webp')} style={{ position: 'absolute', width: '43%', maxWidth: 165, height: 154, right: 0, top: -28 }} contentFit="contain" autoplay={false} accessible={false} pointerEvents="none" /> : null}
-					<View style={{ gap: 8, paddingRight: firstCourse ? '39%' : 0 }}>
-						<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-							<LeadIcon size={15} color={leadInk} />
-							<T v="label" color={leadInk}>{first ? 'Up next' : next ? 'Continue reading' : recent ? 'Review' : 'Get started'}</T>
+				<Reveal follow>
+					<Card style={{ padding: 19, marginTop: firstCourse ? 10 : 0, backgroundColor: leadBackground, borderColor: alpha(leadColor, 0.32), gap: 12 }}>
+						<View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { borderRadius: radius.md, overflow: 'hidden' }]}>
+							<CourseHalo color={leadColor} />
 						</View>
-						<T v="title" accessibilityRole="header">{leadTitle}</T>
-						<T>{leadDetail}{first ? ` · ${first.minutes} min` : ''}</T>
-					</View>
-					{!first && active ? <Meter value={active.covered} height={3} /> : null}
-					<Button title={first ? `Open ${activity(first).label.toLowerCase()}` : next ? 'Open lesson' : recent ? 'Open course' : 'Browse courses'} onPress={() => router.push(leadHref as never)} style={{ alignSelf: 'flex-start' }} />
-				</Card>
+						{firstCourse ? <Image source={require('../../assets/ollie/notes.webp')} style={{ position: 'absolute', width: '43%', maxWidth: 165, height: 154, right: 0, top: -28 }} contentFit="contain" autoplay={false} accessible={false} pointerEvents="none" /> : null}
+						<View style={{ gap: 8, paddingRight: firstCourse ? '39%' : 0 }}>
+							<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+								<LeadIcon size={15} color={leadInk} />
+								<T v="label" color={leadInk}>{first ? 'Up next' : next ? 'Continue reading' : recent ? 'Review' : 'Get started'}</T>
+							</View>
+							<T v="title" accessibilityRole="header">{leadTitle}</T>
+							<T>{leadDetail}{first ? ` · ${first.minutes} min` : ''}</T>
+						</View>
+						{!first && active ? <Meter value={active.covered} height={3} /> : null}
+						<Button title={first ? `Open ${activity(first).label.toLowerCase()}` : next ? 'Open lesson' : recent ? 'Open course' : 'Browse courses'} onPress={() => router.push(leadHref as never)} style={{ alignSelf: 'flex-start' }} />
+					</Card>
+				</Reveal>
 			) : null}
 
 			{today && (today.streakDays > 0 || today.daysToExam !== null) ? (

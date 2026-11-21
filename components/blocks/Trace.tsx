@@ -12,7 +12,9 @@ import Svg, { Circle, Line, Text as SText } from 'react-native-svg';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react-native';
 import type { TraceBlock, TraceState } from '../../lib/api/types';
 import { fonts, radius, useTheme, type HueSet, type Palette } from '../../lib/theme';
-import { parse } from '../../lib/html';
+import { parse, textOf } from '../../lib/html';
+import { codeLines, highlightCode } from '../../lib/highlight';
+import { CodeRuns } from '../CodeRuns';
 import { Html } from '../Html';
 import { Press, T, hair } from '../ui';
 import { Eye } from './Blocks';
@@ -223,17 +225,9 @@ function GraphView({ g, s, hue, t }: { g: NonNullable<TraceBlock['graph']>; s: T
 
 function CodeView({ block, s, hue, t }: { block: TraceBlock; s: TraceState; hue: HueSet; t: Palette }) {
 	const lines = useMemo(() => {
-		if (block.html) {
-			// keep it simple: plain text of the highlighted program, split in lines
-			const text = parse(block.html)
-				.map(function f(n): string {
-					return n.name === '#text' ? (n.text ?? '') : n.children.map(f).join('');
-				})
-				.join('');
-			return text.split('\n');
-		}
-		return (block.code ?? '').split('\n');
-	}, [block.html, block.code]);
+		const markup = block.html ? parse(block.html) : undefined;
+		return codeLines(highlightCode(block.code ?? textOf(markup ?? []), block.lang, markup));
+	}, [block.html, block.code, block.lang]);
 	return (
 		<View style={{ gap: 8 }}>
 			<ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ backgroundColor: t.surface2, borderRadius: 12 }}>
@@ -241,7 +235,7 @@ function CodeView({ block, s, hue, t }: { block: TraceBlock; s: TraceState; hue:
 					{lines.map((l, i) => (
 						<View key={i} style={{ flexDirection: 'row', backgroundColor: s.line === i + 1 ? hue.soft : 'transparent', paddingHorizontal: 10 }}>
 							<Text style={{ width: 24, fontFamily: fonts.mono, fontSize: 12, lineHeight: 20, color: t.muted }}>{i + 1}</Text>
-							<Text style={{ fontFamily: fonts.mono, fontSize: 13, lineHeight: 20, color: s.line === i + 1 ? hue.ink : t.fg }}>{l || ' '}</Text>
+							<Text style={{ fontFamily: fonts.mono, fontSize: 13, lineHeight: 20, color: t.fg }}>{l.length ? <CodeRuns runs={l} palette={t} /> : ' '}</Text>
 						</View>
 					))}
 				</View>

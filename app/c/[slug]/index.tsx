@@ -15,7 +15,7 @@ import { plain } from '../../../lib/html';
 import { addDays, lagosToday } from '../../../lib/study/srs';
 import { shortDate } from '../../../lib/study/ids';
 import { Html } from '../../../components/Html';
-import { Button, Card, ErrorBox, Loading, Press, T, hair } from '../../../components/ui';
+import { Button, Card, ErrorBox, Loading, Press, Reveal, T, hair } from '../../../components/ui';
 import { Ring } from '../../../components/Ring';
 import { CourseIcon } from '../../../components/CourseIcon';
 import { CourseHalo } from '../../../components/CourseHalo';
@@ -72,7 +72,7 @@ export default function CourseScreen() {
 					<ArrowLeft size={18} color={t.accent} />
 					<T v="bodyStrong">Back</T>
 				</Press>
-				<View style={{ backgroundColor: hue.wash, borderWidth: hair, borderColor: alpha(hue.base, 0.28), borderRadius: radius.lg, padding: 20, gap: 14, overflow: 'hidden' }}>
+				<Reveal style={{ backgroundColor: hue.wash, borderWidth: hair, borderColor: alpha(hue.base, 0.28), borderRadius: radius.lg, padding: 20, gap: 14, overflow: 'hidden' }}>
 					<CourseHalo color={hue.base} />
 					<View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
 						<View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: hue.soft, alignItems: 'center', justifyContent: 'center' }}>
@@ -97,7 +97,7 @@ export default function CourseScreen() {
 							<ProgressStat value={p?.examReady ?? 0} label="Exam-ready" color={t.success} track={hue.soft} />
 						</View>
 					) : null}
-				</View>
+				</Reveal>
 
 				<View style={{ gap: 16 }}>
 					{!c.viewerHasAccess ? (
@@ -108,11 +108,11 @@ export default function CourseScreen() {
 						</Card>
 					) : null}
 
-					<View style={{ flexDirection: 'row', gap: 10 }}>
+					<Reveal follow style={{ flexDirection: 'row', gap: 10 }}>
 						<Tool label="Flashcards" sub={p?.cardsDue ? `${p.cardsDue} due` : `${c.flashcardCount} cards`} Icon={Layers} onPress={() => router.push(`/c/${c.card.slug}/cards` as never)} disabled={!c.flashcardCount} />
 						<Tool label="Practice" sub={`${c.practiceCount} questions`} Icon={PenLine} onPress={() => router.push(`/c/${c.card.slug}/practice` as never)} disabled={!c.practiceCount} />
 						<Tool label="Final quiz" sub={p?.finalQuizBest != null ? `Best ${Math.round(p.finalQuizBest * 100)}%` : `${c.finalQuizCount} questions`} Icon={Trophy} onPress={() => router.push(quizHref(c.card.slug, 'final') as never)} disabled={!c.finalQuizCount} />
-					</View>
+					</Reveal>
 
 					<T v="title" accessibilityRole="header" style={{ marginTop: 6 }}>
 						The route

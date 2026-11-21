@@ -8,7 +8,7 @@ import { ArrowLeft, ArrowRight, BookOpen, Check, GraduationCap, Layers, SquareCh
 import { AccountField } from '../components/AccountPage';
 import { CourseHalo } from '../components/CourseHalo';
 import { CourseIcon } from '../components/CourseIcon';
-import { Button, Card, Chip, ErrorBox, Press, Screen, T, hair } from '../components/ui';
+import { Button, Card, Chip, ErrorBox, Press, Reveal, Screen, T, hair } from '../components/ui';
 import { gql, errorText } from '../lib/api/client';
 import { CATALOGUE, COURSE, LEVELS_FOR, UPDATE_PROFILE } from '../lib/api/queries';
 import type { CourseCard, CourseOutline, Department, Level, User } from '../lib/api/types';
@@ -154,10 +154,10 @@ export default function Onboarding() {
 
 				{step === 1 ? (
 					<>
-						<View style={{ gap: 7 }}>
+						<Reveal style={{ gap: 7 }}>
 							<T v="display" accessibilityRole="header">{editing ? 'Department and level' : 'What do you study?'}</T>
 							<T>We’ll match courses to your department and level.</T>
-						</View>
+						</Reveal>
 						<View style={{ gap: 9 }}>
 							<T v="h3">Department</T>
 							{allDepartments.length > 6 ? <AccountField label="Search departments" value={search} onChangeText={setSearch} autoCorrect={false} /> : null}
@@ -192,11 +192,11 @@ export default function Onboarding() {
 
 				{step === 2 ? (
 					<>
-						<View style={{ gap: 8 }}>
+						<Reveal style={{ gap: 8 }}>
 							<T v="label" color={t.accent}>{department?.name} · {selectedLevel?.name}</T>
 							<T v="display" accessibilityRole="header">Pick your first course.</T>
 							<T>We’ll open a lesson you can start now.</T>
-						</View>
+						</Reveal>
 						{matches.error ? <ErrorBox message={errorText(matches.error)} onRetry={() => loadCourses({ requestPolicy: 'network-only' })} /> : null}
 						{matches.fetching ? <T v="small">Finding your courses…</T> : null}
 						{matchedCourses.map((item) => <CourseChoice key={item.slug} item={item} selected={course === item.slug} disabled={busy} onPress={() => setCourse(item.slug)} />)}

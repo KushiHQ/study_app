@@ -1,22 +1,23 @@
-// A lesson diagram: tap a part to read about it; diagrams with steps get a
-// player (play, back, next) that shows a change step by step. Before the student
-// starts, the finished picture shows (same rules as the web's Diagram.svelte).
+// A lesson diagram (matches study_web_app Diagram.svelte):
+// Tap any part to inspect it; diagrams with steps get a full player with Play/Pause, Back/Next,
+// tappable segmented scrubber track, step counter, inline speed pill, and accented step note card.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react-native';
 import { alpha, fonts, mix, radius, useTheme, type HueSet } from '../../lib/theme';
-import { useStudyPrefs } from '../../lib/prefs';
+import { useStudyPrefs, type AnimSpeed } from '../../lib/prefs';
 import { Html } from '../Html';
-import { InfoTip, LuminousBg, Press, T, hair } from '../ui';
+import { InfoTip, LuminousBg, Press, hair } from '../ui';
 import { SvgTree } from '../SvgTree';
 
 type Note = { title: string; html: string };
+const SPEEDS: AnimSpeed[] = [1, 1.5, 0.75];
 
 export function Diagram({ svg, caption, parts = [], steps = [], hue, width, autoplay }: { svg: string; caption: string; parts?: (Note & { id: string })[]; steps?: Note[]; hue: HueSet; width: number; autoplay?: boolean }) {
 	const t = useTheme();
 	const animSpeed = useStudyPrefs((s) => s.animSpeed);
+	const setAnimSpeed = useStudyPrefs((s) => s.setAnimSpeed);
 	const byId = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts]);
 	const [active, setActive] = useState<string | null>(null);
 	const [cur, setCur] = useState(-1);
@@ -48,6 +49,11 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 		setCur(Math.max(0, Math.min(last, n)));
 		Haptics.selectionAsync().catch(() => {});
 	};
+	const cycleSpeed = () => {
+		Haptics.selectionAsync().catch(() => {});
+		setAnimSpeed(SPEEDS[(SPEEDS.indexOf(animSpeed) + 1) % SPEEDS.length]);
+	};
+
 	const shown = cur < 0 ? last : cur;
 	const note = active ? byId.get(active) : null;
 
@@ -59,17 +65,18 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 				borderRadius: radius.md,
 				borderWidth: hair,
 				borderColor: alpha(hue.base, 0.24),
-				padding: 12,
-				gap: 10,
+				padding: 14,
+				gap: 12,
 				overflow: 'hidden'
 			}}
 		>
 			<LuminousBg from={mix(hue.base, t.name === 'night' ? 8 : 5, t.surface)} to={t.surface} borderRadius={radius.md} />
+
 			<View style={{ alignItems: 'center' }}>
 				<SvgTree
 					svg={svg}
 					hue={hue}
-					maxWidth={Math.max(1, width - 24 - 2 * hair)}
+					maxWidth={Math.max(1, width - 28 - 2 * hair)}
 					step={steps.length ? { cur, last } : undefined}
 					activePart={active}
 					onPart={
@@ -82,23 +89,24 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 					}
 				/>
 			</View>
+
 			{parts.length ? (
 				<View style={{ position: 'absolute', top: 8, right: 8 }}>
 					<InfoTip text="Tap any highlighted part of this diagram to inspect it." label="Interactive diagram hint" />
 				</View>
 			) : null}
+
 			{note ? (
-				<Animated.View entering={FadeIn.duration(200)} style={{ backgroundColor: hue.wash, borderRadius: 14, padding: 12, gap: 4 }}>
+				<View style={{ backgroundColor: hue.wash, borderRadius: 14, padding: 12, gap: 4, borderLeftWidth: 3, borderLeftColor: hue.base }}>
 					<Text style={{ fontFamily: fonts.readHeavy, fontSize: 15, color: hue.ink }}>{note.title}</Text>
-					<Html html={note.html} hue={hue} style={{ fontSize: 15, lineHeight: 23 }} />
-				</Animated.View>
+					{note.html ? <Html html={note.html} hue={hue} style={{ fontSize: 15, lineHeight: 23 }} /> : null}
+				</View>
 			) : null}
+
 			{steps.length ? (
-				<View style={{ gap: 8 }}>
-					<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-						<Ctl label="Back" onPress={() => go(shown - 1)} disabled={cur === 0}>
-							<ChevronLeft size={18} color={t.fg2} />
-						</Ctl>
+				<View style={{ gap: 10 }}>
+					{/* Web-parity controls: Play/Pause, Back, tappable segmented track, Next, counter, speed */}
+					<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
 						<Ctl
 							label={playing ? 'Pause' : 'Play'}
 							strong
@@ -110,24 +118,92 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 								setPlaying(true);
 							}}
 						>
-							{playing ? <Pause size={18} color={t.onHue} /> : <Play size={18} color={t.onHue} />}
+							{playing ? <Pause size={15} color={t.onHue} /> : <Play size={15} color={t.onHue} />}
 						</Ctl>
+						<Ctl label="Back" onPress={() => go(shown - 1)} disabled={shown <= 0}>
+							<ChevronLeft size={16} color={t.fg2} />
+						</Ctl>
+
+						{/* Tappable Segmented Scrubber Track */}
+						<View style={{ flex: 1, flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+							{steps.map((s, i) => {
+								const isNow = i === shown && cur >= 0;
+								const isDone = i <= shown;
+								return (
+									<Press
+										key={i}
+										onPress={() => go(i)}
+										hitSlop={{ top: 12, bottom: 12, left: 2, right: 2 }}
+										accessibilityRole="button"
+										accessibilityLabel={`Step ${i + 1}: ${s.title}`}
+										style={{
+											flex: 1,
+											height: 8,
+											borderRadius: 4,
+											backgroundColor: isNow
+												? hue.base
+												: isDone
+													? alpha(hue.base, 0.5)
+													: t.line2
+										}}
+									/>
+								);
+							})}
+						</View>
+
 						<Ctl label="Next" onPress={() => go(cur < 0 ? 0 : shown + 1)} disabled={cur >= last}>
-							<ChevronRight size={18} color={t.fg2} />
+							<ChevronRight size={16} color={t.fg2} />
 						</Ctl>
-						<T v="label" style={{ marginLeft: 'auto' }}>
-							{cur < 0 ? `${steps.length} steps` : `Step ${cur + 1} of ${steps.length}`}
-						</T>
+
+						<Text style={{ fontFamily: fonts.mono, fontSize: 11, color: t.muted, minWidth: 28, textAlign: 'right' }}>
+							{shown + 1}/{steps.length}
+						</Text>
+
+						<Press
+							onPress={cycleSpeed}
+							accessibilityRole="button"
+							accessibilityLabel={`Playback speed ${animSpeed}x`}
+							style={{
+								paddingHorizontal: 7,
+								height: 28,
+								borderRadius: 8,
+								backgroundColor: t.surface2,
+								borderWidth: hair,
+								borderColor: t.line2,
+								alignItems: 'center',
+								justifyContent: 'center'
+							}}
+						>
+							<Text style={{ fontFamily: fonts.mono, fontSize: 10.5, color: t.fg2 }}>{animSpeed}×</Text>
+						</Press>
 					</View>
-					{cur >= 0 ? (
-						<Animated.View key={cur} entering={FadeIn.duration(250)} style={{ gap: 2 }}>
-							<Html html={steps[cur].title} hue={hue} style={{ fontFamily: fonts.readHeavy, fontSize: 15 }} />
-							<Html html={steps[cur].html} hue={hue} style={{ fontSize: 15, lineHeight: 23 }} />
-						</Animated.View>
+
+					{/* Always-visible Active Step Note Card (matches web .now-note) */}
+					{steps[shown] ? (
+						<View
+							style={{
+								backgroundColor: t.surface2,
+								borderRadius: 12,
+								padding: 12,
+								gap: 3,
+								borderLeftWidth: 3,
+								borderLeftColor: hue.base
+							}}
+						>
+							<Text style={{ fontFamily: fonts.mono, fontSize: 10.5, letterSpacing: 0.9, textTransform: 'uppercase', color: hue.ink }}>
+								Step {shown + 1} · {steps[shown].title.replace(/<[^>]+>/g, '')}
+							</Text>
+							{steps[shown].html ? <Html html={steps[shown].html} hue={hue} style={{ fontSize: 14.5, lineHeight: 22 }} /> : null}
+						</View>
 					) : null}
 				</View>
 			) : null}
-			{caption ? <Html html={caption} hue={hue} style={{ fontSize: 14, lineHeight: 21, color: t.muted }} /> : null}
+
+			{caption ? (
+				<View style={{ borderTopWidth: hair, borderStyle: 'dashed', borderColor: t.line2, paddingTop: 10 }}>
+					<Html html={caption} hue={hue} style={{ fontSize: 14, lineHeight: 21, color: t.muted, textAlign: 'center' }} />
+				</View>
+			) : null}
 		</View>
 	);
 }
@@ -140,7 +216,17 @@ function Ctl({ children, onPress, label, strong, hue, disabled }: { children: Re
 			disabled={disabled}
 			accessibilityRole="button"
 			accessibilityLabel={label}
-			style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: strong ? (hue?.base ?? t.amber) : t.surface2, opacity: disabled ? 0.4 : 1 }}
+			style={{
+				width: 34,
+				height: 34,
+				borderRadius: 17,
+				alignItems: 'center',
+				justifyContent: 'center',
+				backgroundColor: strong ? (hue?.base ?? t.amber) : t.surface2,
+				borderWidth: strong ? 0 : hair,
+				borderColor: t.line2,
+				opacity: disabled ? 0.35 : 1
+			}}
 		>
 			{children}
 		</Press>

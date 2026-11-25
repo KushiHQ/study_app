@@ -1,12 +1,11 @@
 import { Text, View } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
+import { ArrowRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import type { CourseCard as Card, CourseProgress } from '../lib/api/types';
-import { alpha, fonts, mix, radius, useTheme, useTint } from '../lib/theme';
+import { alpha, fonts, mix, useTheme, useTint } from '../lib/theme';
 import { plain } from '../lib/html';
 import { courseHref } from '../lib/nav';
-import { LuminousBg, Press, hair } from './ui';
-import { CourseIcon } from './CourseIcon';
+import { LuminousBg, Meter, Press, hair } from './ui';
 
 export function CourseCard({ card, progress, compact }: { card?: Card; progress?: CourseProgress; compact?: boolean }) {
 	const t = useTheme();
@@ -15,8 +14,10 @@ export function CourseCard({ card, progress, compact }: { card?: Card; progress?
 	const hue = useTint(slug);
 	const code = card?.code ?? progress?.courseCode ?? '';
 	const title = plain(card?.title ?? progress?.courseTitle ?? '');
+	const coveredPct = progress ? Math.round(progress.covered * 100) : null;
+	const readyPct = progress ? Math.round(progress.examReady * 100) : null;
 	const meta = progress
-		? `${Math.round(progress.covered * 100)}% covered · ${Math.round(progress.examReady * 100)}% exam-ready`
+		? `${coveredPct}% covered · ${readyPct}% exam-ready`
 		: card
 			? `${card.unitCount} ${card.unitCount === 1 ? 'unit' : 'units'} · ${card.lessonCount} lessons`
 			: '';
@@ -31,42 +32,75 @@ export function CourseCard({ card, progress, compact }: { card?: Card; progress?
 				backgroundColor: t.surface,
 				borderRadius: 20,
 				borderWidth: hair,
-				borderColor: alpha(hue.base, 0.28),
+				borderColor: alpha(hue.base, t.name === 'night' ? 0.3 : 0.24),
 				overflow: 'hidden',
-				padding: compact ? 14 : 16,
-				flexDirection: 'row',
-				alignItems: 'center',
-				gap: 14
+				padding: compact ? 15 : 18,
+				gap: compact ? 9 : 11
 			}}
 		>
 			<LuminousBg from={mix(hue.base, t.name === 'night' ? 14 : 9, t.surface)} to={t.surface} borderRadius={20} />
-			<View
+
+			{/* Top Row: Flat Code Pill + Hue Arrow */}
+			<View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+				{code ? (
+					<View
+						style={{
+							paddingHorizontal: 10,
+							paddingVertical: 4,
+							borderRadius: 8,
+							backgroundColor: alpha(hue.base, t.name === 'night' ? 0.16 : 0.13),
+							borderWidth: hair,
+							borderColor: alpha(hue.base, 0.32)
+						}}
+					>
+						<Text style={{ fontFamily: fonts.mono, fontSize: 11, letterSpacing: 0.9, color: hue.ink, textTransform: 'uppercase' }}>
+							{code}
+						</Text>
+					</View>
+				) : (
+					<View />
+				)}
+				<View
+					style={{
+						width: 30,
+						height: 30,
+						borderRadius: 15,
+						backgroundColor: alpha(hue.base, t.name === 'night' ? 0.14 : 0.1),
+						alignItems: 'center',
+						justifyContent: 'center'
+					}}
+				>
+					<ArrowRight size={15} color={hue.ink} />
+				</View>
+			</View>
+
+			{/* Course Title */}
+			<Text
+				numberOfLines={2}
 				style={{
-					width: 48,
-					height: 48,
-					borderRadius: 14,
-					backgroundColor: hue.base,
-					alignItems: 'center',
-					justifyContent: 'center',
-					flexShrink: 0
+					fontFamily: fonts.display,
+					fontSize: compact ? 16 : 17,
+					lineHeight: compact ? 22 : 24,
+					letterSpacing: -0.4,
+					color: t.fg
 				}}
 			>
-				<CourseIcon name={card?.icon} size={23} color={t.onHue} />
-			</View>
-			<View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-				<Text numberOfLines={1} style={{ fontFamily: fonts.mono, fontSize: 11, letterSpacing: 0.8, color: hue.ink, textTransform: 'uppercase' }}>
-					{code}
-				</Text>
-				<Text numberOfLines={1} style={{ fontFamily: fonts.bodyBold, fontSize: 16, lineHeight: 21, color: t.fg }}>
-					{title}
-				</Text>
-				{meta ? (
-					<Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: 12, color: t.muted }}>
+				{title}
+			</Text>
+
+			{/* Progress Meter (when enrolled) + Meta */}
+			{progress ? (
+				<View style={{ gap: 6 }}>
+					<Meter value={progress.covered} color={hue.base} height={6} />
+					<Text numberOfLines={1} style={{ fontFamily: fonts.mono, fontSize: 11, letterSpacing: 0.4, color: t.muted }}>
 						{meta}
 					</Text>
-				) : null}
-			</View>
-			<ChevronRight size={18} color={t.muted} />
+				</View>
+			) : meta ? (
+				<Text numberOfLines={1} style={{ fontFamily: fonts.mono, fontSize: 11, letterSpacing: 0.4, color: t.muted }}>
+					{meta}
+				</Text>
+			) : null}
 		</Press>
 	);
 }

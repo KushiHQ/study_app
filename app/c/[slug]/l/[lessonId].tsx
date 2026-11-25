@@ -23,6 +23,7 @@ import { QuestionCard } from '../../../../components/QuestionCard';
 import { ReportSheet, type ReportTarget } from '../../../../components/ReportSheet';
 import { TopBar } from '../../../../components/TopBar';
 import { ReaderCompanion } from '../../../../components/ReaderCompanion';
+import { CelebrationModal, type MilestonePayload } from '../../../../components/CelebrationModal';
 import { Button, Card, ErrorBox, Loading, LuminousBg, Press, Reveal, T, hair } from '../../../../components/ui';
 import { ErrorBoundary } from '../../../../components/ErrorBoundary';
 
@@ -63,6 +64,7 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 	const [answered, setAnswered] = useState(0);
 	const [report, setReport] = useState<ReportTarget | null>(null);
 	const [outlineOpen, setOutlineOpen] = useState(false);
+	const [milestone, setMilestone] = useState<MilestonePayload | null>(null);
 	const textScale = useStudyPrefs((s) => s.textScale);
 	const setTextScale = useStudyPrefs((s) => s.setTextScale);
 	const changingLesson = useRef(false);
@@ -138,7 +140,67 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 		const was = done;
 		track({ kind: was ? 'lesson_uncomplete' : 'lesson_complete', courseSlug: slug, lessonId: id });
 		if (was) return;
-		Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+
+		const isDoneAfter = (lid: string) => lid === id || isCompleted(lid, cd?.courseProgress?.completedLessons, overlay);
+		const allLessons = course?.units.flatMap((u) => u.lessons) ?? [];
+		const courseDone = allLessons.filter((l) => isDoneAfter(l.id)).length;
+		const courseTotal = allLessons.length;
+		const courseComplete = courseTotal > 0 && courseDone >= courseTotal;
+
+		const unitLessons = unit?.lessons ?? [];
+		const unitDone = unitLessons.filter((l) => isDoneAfter(l.id)).length;
+		const unitTotal = unitLessons.length;
+		const unitComplete = unitTotal > 0 && unitDone >= unitTotal;
+
+		const courseCode = course?.card.code ?? slug.toUpperCase();
+		const courseTitle = plain(course?.card.title ?? slug);
+		const nextId = lc?.next?.id;
+
+		if (courseComplete) {
+			setMilestone({
+				tier: 'course',
+				courseCode,
+				courseTitle,
+				courseDone,
+				courseTotal,
+				primaryLabel: course?.finalQuizCount ? 'Take final quiz' : 'Back to course',
+				onPrimary: () => (course?.finalQuizCount ? router.push(quizHref(slug, 'final') as never) : router.replace(courseHref(slug))),
+				secondaryLabel: course?.finalQuizCount ? 'Back to course' : undefined,
+				onSecondary: course?.finalQuizCount ? () => router.replace(courseHref(slug)) : undefined
+			});
+		} else if (unitComplete && unit) {
+			setMilestone({
+				tier: 'unit',
+				courseCode,
+				courseTitle,
+				unitNumber: unitIndex + 1,
+				unitTitle: plain(unit.title),
+				unitDone,
+				unitTotal,
+				courseDone,
+				courseTotal,
+				primaryLabel: unit.quizCount > 0 ? `Take Unit ${unitIndex + 1} quiz` : nextId ? 'Continue to next unit' : 'Back to course',
+				onPrimary: () => (unit.quizCount > 0 ? router.push(quizHref(slug, unit.id) as never) : nextId ? go(nextId) : router.replace(courseHref(slug))),
+				secondaryLabel: unit.quizCount > 0 && nextId ? 'Skip to next unit' : 'Back to course',
+				onSecondary: () => (unit.quizCount > 0 && nextId ? go(nextId) : router.replace(courseHref(slug)))
+			});
+		} else {
+			setMilestone({
+				tier: 'lesson',
+				courseCode,
+				courseTitle,
+				lessonTitle: lesson ? plain(lesson.title) : undefined,
+				unitNumber: unitIndex >= 0 ? unitIndex + 1 : 1,
+				unitDone,
+				unitTotal,
+				courseDone,
+				courseTotal,
+				primaryLabel: nextId ? 'Next lesson' : 'Back to course',
+				onPrimary: () => (nextId ? go(nextId) : router.replace(courseHref(slug))),
+				secondaryLabel: 'Stay on lesson',
+				onSecondary: () => {}
+			});
+		}
 	};
 
 	const go = (target: string) => {
@@ -462,6 +524,7 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 				</Pressable>
 			</Modal>
 			<ReportSheet target={report} onClose={() => setReport(null)} />
+			<CelebrationModal milestone={milestone} onClose={() => setMilestone(null)} />
 		</View>
 	);
 }

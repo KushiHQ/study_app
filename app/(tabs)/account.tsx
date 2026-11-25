@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Alert, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from 'urql';
-import Animated, { LinearTransition } from 'react-native-reanimated';
 import { ChevronRight, CreditCard, Gift, Lightbulb, LogOut, Minus, Monitor, Moon, Plus, Sun, Upload } from 'lucide-react-native';
 import { BILLING, DEPARTMENTS_LEVELS, UPDATE_PROFILE } from '../../lib/api/queries';
 import type { Access, Department, Level, User } from '../../lib/api/types';
@@ -10,16 +9,16 @@ import { errorText, gql } from '../../lib/api/client';
 import { useSession } from '../../lib/session';
 import { unregisterPush } from '../../lib/services';
 import { useStudyPrefs, type AnimSpeed } from '../../lib/prefs';
-import { alpha, fonts, mix, radius, useTheme, useThemeChoice, type ThemeChoice } from '../../lib/theme';
+import { alpha, fonts, radius, useTheme, useThemeChoice, type ThemeChoice } from '../../lib/theme';
 import { daysLeft } from '../../lib/study/trial';
 import { Html } from '../../components/Html';
+import { TopBar } from '../../components/TopBar';
 import {
 	Button,
 	Card,
 	Eyebrow,
 	FieldInput,
 	InfoTip,
-	LuminousBg,
 	Press,
 	Reveal,
 	Screen,
@@ -40,7 +39,7 @@ export default function Account() {
 	const router = useRouter();
 	const user = useSession((s) => s.user);
 	const { choice, set: setChoice } = useThemeChoice();
-	const { animSpeed, setAnimSpeed, textScale, setTextScale, sounds, setSounds } = useStudyPrefs();
+	const { animSpeed, setAnimSpeed, textScale, setTextScale, sounds, setSounds, showOllie, setShowOllie } = useStudyPrefs();
 
 	const [{ data: bd }] = useQuery<{ access: Access }>({ query: BILLING, requestPolicy: 'cache-and-network' });
 	const [{ data: dl }] = useQuery<{ departments: Department[]; levels: Level[] }>({ query: DEPARTMENTS_LEVELS, requestPolicy: 'cache-first' });
@@ -136,18 +135,20 @@ export default function Account() {
 	];
 
 	return (
-		<Screen contentContainerStyle={{ gap: 16 }}>
-			<View>
-				<Eyebrow>Settings</Eyebrow>
-				<Reveal style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+		<Screen contentContainerStyle={{ gap: 16, paddingHorizontal: 20, maxWidth: 680, width: '100%', alignSelf: 'center' }}>
+			<TopBar showProfile={false} />
+
+			<Reveal style={{ gap: 12 }}>
+				<Eyebrow>Account &amp; preferences</Eyebrow>
+				<Card tint={t.amber} tintStrength={t.name === 'night' ? 11 : 7} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 22, padding: 16 }}>
 					<View
 						style={{
 							width: 54,
 							height: 54,
 							borderRadius: 27,
-							backgroundColor: t.accentSoft,
+							backgroundColor: alpha(t.amber, 0.16),
 							borderWidth: hair,
-							borderColor: alpha(t.amber, 0.4),
+							borderColor: alpha(t.amber, 0.45),
 							alignItems: 'center',
 							justifyContent: 'center'
 						}}
@@ -156,19 +157,24 @@ export default function Account() {
 							{(user?.name || user?.email || '?').slice(0, 1).toUpperCase()}
 						</Text>
 					</View>
-					<View style={{ flex: 1 }}>
+					<View style={{ flex: 1, gap: 2 }}>
 						<T v="title" numberOfLines={1}>
 							{user?.name || 'Student'}
 						</T>
 						<T v="small" numberOfLines={1}>
 							{user?.email}
 						</T>
+						{user?.department?.name || user?.level?.name ? (
+							<Text numberOfLines={1} style={{ fontFamily: fonts.mono, fontSize: 10.5, letterSpacing: 0.6, color: t.accent, marginTop: 2 }}>
+								{[user?.department?.name, user?.level?.name].filter(Boolean).join(' · ')}
+							</Text>
+						) : null}
 					</View>
-				</Reveal>
-			</View>
+				</Card>
+			</Reveal>
 
 			{/* Profile */}
-			<Card style={{ gap: 14 }}>
+			<Card style={{ gap: 14, borderRadius: 22 }}>
 				<T v="h3">Profile</T>
 				<FieldInput label="Name" value={name} onChangeText={setName} maxLength={60} autoComplete="name" placeholder="Your name" />
 				<View style={{ flexDirection: 'row', gap: 10 }}>
@@ -185,7 +191,7 @@ export default function Account() {
 			</Card>
 
 			{/* Look & reading */}
-			<Card style={{ gap: 0 }}>
+			<Card style={{ gap: 0, borderRadius: 22 }}>
 				<T v="h3" style={{ marginBottom: 8 }}>Look and reading</T>
 
 				{/* Theme */}
@@ -223,11 +229,20 @@ export default function Account() {
 					</View>
 				</View>
 
+				{/* Show Ollie reading along */}
+				<View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderTopWidth: hair, borderColor: t.line }}>
+					<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+						<T v="bodyStrong">Show Ollie reading along</T>
+						<InfoTip text="Shows Ollie beside your Focus timer while you read lessons. Turn off for a minimal reader." label="Ollie companion info" />
+					</View>
+					<ToggleSwitch value={showOllie} onChange={setShowOllie} />
+				</View>
+
 				{/* Sounds */}
 				<View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderTopWidth: hair, borderColor: t.line }}>
 					<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-						<T v="bodyStrong">Sounds</T>
-						<InfoTip text="Chimes for right answers and finished lessons on this device." label="Sounds info" />
+						<T v="bodyStrong">Sounds &amp; haptics</T>
+						<InfoTip text="Celebration feedback for right answers and finished lessons on this device." label="Sounds info" />
 					</View>
 					<ToggleSwitch value={sounds} onChange={setSounds} />
 				</View>
@@ -254,8 +269,7 @@ export default function Account() {
 										borderRadius: radius.pill,
 										alignItems: 'center',
 										justifyContent: 'center',
-										backgroundColor: on ? t.amber : 'transparent',
-										overflow: 'hidden'
+										backgroundColor: on ? t.amber : 'transparent'
 									}}
 								>
 									<Text style={{ fontFamily: fonts.bodyBold, fontSize: 13, color: on ? t.onAmber : t.fg2 }}>{sp.label}</Text>
@@ -320,18 +334,18 @@ export default function Account() {
 			</Card>
 
 			{/* Plan & community */}
-			<Card padded={false}>
+			<Card padded={false} style={{ borderRadius: 22 }}>
 				<Row icon={<CreditCard size={18} color={t.amber} />} label="Billing & subscription" value={planLine || undefined} onPress={() => router.push('/plan')} />
 				<Row icon={<Gift size={18} color={t.amber} />} label="Invite friends & wallet" onPress={() => router.push('/invite')} />
 				<Row icon={<Upload size={18} color={t.amber} />} label="Send course material" onPress={() => router.push('/contribute')} />
 				<Row icon={<Lightbulb size={18} color={t.amber} />} label="Request a course" onPress={() => router.push('/request')} last />
 			</Card>
 
-			<Button kind="solid" title="Sign out" icon={<LogOut size={18} color={t.danger} />} onPress={signOut} />
+			<Button kind="solid" title="Sign out" icon={<LogOut size={18} color={t.danger} />} onPress={signOut} style={{ borderRadius: 16 }} />
 
-			<Animated.View layout={LinearTransition} style={{ marginTop: 4 }}>
+			<View style={{ marginTop: 4 }}>
 				{deleting ? (
-					<Card tint={t.danger} tintStrength={12} style={{ gap: 10 }}>
+					<Card tint={t.danger} tintStrength={12} style={{ gap: 10, borderRadius: 22 }}>
 						<T v="h3" color={t.danger}>
 							Delete your account
 						</T>
@@ -356,7 +370,7 @@ export default function Account() {
 						Delete account
 					</Text>
 				)}
-			</Animated.View>
+			</View>
 		</Screen>
 	);
 }

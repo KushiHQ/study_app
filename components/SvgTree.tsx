@@ -128,9 +128,13 @@ function attrsFor(n: HNode, t: Palette, hue: HueSet | undefined, step: StepState
 			props.strokeWidth = 2.6;
 		}
 	}
-	if (activePart && n.attrs['data-part'] === activePart) {
-		props.stroke = hue?.base ?? t.amber;
-		props.strokeWidth = 2.8;
+	if (activePart && n.attrs['data-part']) {
+		if (n.attrs['data-part'] === activePart) {
+			props.stroke = hue?.base ?? t.amber;
+			props.strokeWidth = 2.8;
+		} else {
+			props.opacity = 0.35;
+		}
 	}
 	return { props, hidden };
 }

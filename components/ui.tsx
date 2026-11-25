@@ -482,6 +482,29 @@ export function Reveal({ children, style, follow }: { children: ReactNode; style
 	return <Animated.View entering={follow ? followingEntrance : firstEntrance} style={style}>{children}</Animated.View>;
 }
 
+/** Smooth uninterrupted top-down ambient wash matching Kushi Study Fresh Night v2. */
+export function TopGlow({ color, height = 280, strength }: { color?: string; height?: number; strength?: number }) {
+	const t = useTheme();
+	const gid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
+	const tint = color ?? t.amber;
+	const topOpacity = strength ?? (t.name === 'night' ? 0.16 : 0.08);
+	const midOpacity = topOpacity * 0.38;
+	return (
+		<View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height }}>
+			<Svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+				<Defs>
+					<LinearGradient id={`tg-${gid}`} x1="0%" y1="0%" x2="0%" y2="100%">
+						<Stop offset="0%" stopColor={tint} stopOpacity={String(topOpacity)} />
+						<Stop offset="52%" stopColor={tint} stopOpacity={String(midOpacity)} />
+						<Stop offset="100%" stopColor={t.bg} stopOpacity="0" />
+					</LinearGradient>
+				</Defs>
+				<Rect x="0" y="0" width="100" height="100" fill={`url(#tg-${gid})`} />
+			</Svg>
+		</View>
+	);
+}
+
 /** Subtle top indigo/teal atmospheric canvas wash matching study_web_app src/app.css --canvas. */
 export function CanvasGlow() {
 	const t = useTheme();

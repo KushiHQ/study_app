@@ -5,21 +5,25 @@ import { useEffect, useState } from 'react';
 import { Linking, Platform, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from 'urql';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Check, X } from 'lucide-react-native';
+import { Check } from 'lucide-react-native';
 import { BILLING } from '../lib/api/queries';
 import type { Access, Plan, Subscription } from '../lib/api/types';
 import { gql, errorText } from '../lib/api/client';
 import { purchases, type StoreOffer } from '../lib/purchases';
 import { daysLeft } from '../lib/study/trial';
 import { shortDate } from '../lib/study/ids';
-import { fonts, useTheme } from '../lib/theme';
-import { Button, Card, ErrorBox, Loading, Pill, Press, T } from '../components/ui';
+import { alpha, fonts, useTheme } from '../lib/theme';
+import { Button, Card, ErrorBox, Eyebrow, Loading, Pill, T, TopGlow } from '../components/ui';
+import { TopBar } from '../components/TopBar';
 
 type Billing = { trialDays: number; plans: Plan[]; access: Access; subscription: Subscription | null };
 
-const PERKS = ['Every lesson, quiz, flashcard deck and practice set', 'In every course, including new ones as they’re written', 'Focus mode, study plan and exam countdown'];
+const PERKS = [
+	'Every lesson, quiz, flashcard deck and practice set',
+	'In every course, including new ones as they’re written',
+	'Focus mode, study plan and exam countdown'
+];
 
 export default function PlanScreen() {
 	const t = useTheme();
@@ -96,60 +100,78 @@ export default function PlanScreen() {
 
 	return (
 		<View style={{ flex: 1, backgroundColor: t.bg }}>
-			<ScrollView contentContainerStyle={{ padding: 22, paddingTop: Platform.OS === 'ios' ? 22 : insets.top + 16, paddingBottom: insets.bottom + 40, gap: 18 }}>
-				<View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-					<T v="label">Plan</T>
-					<Press onPress={() => router.back()} hitSlop={12} accessibilityLabel="Close">
-						<X size={24} color={t.fg} />
-					</Press>
+			<TopGlow color={t.amber} height={300} strength={t.name === 'night' ? 0.2 : 0.1} />
+			<ScrollView
+				contentContainerStyle={{
+					paddingHorizontal: 22,
+					paddingTop: Platform.OS === 'ios' ? insets.top + 12 : insets.top + 12,
+					paddingBottom: insets.bottom + 40,
+					gap: 18,
+					maxWidth: 560,
+					width: '100%',
+					alignSelf: 'center'
+				}}
+			>
+				<TopBar backLabel="Close" onBack={() => router.back()} showProfile={false} />
+
+				<View style={{ gap: 6 }}>
+					<Eyebrow>Kushi Study Pass</Eyebrow>
+					<T v="display" style={{ fontSize: 26, lineHeight: 34 }}>
+						{paid ? 'You have the full plan.' : trial ? 'You’re on your free trial.' : 'One plan. Every course.'}
+					</T>
 				</View>
-				<T v="display">{paid ? 'You have the full plan.' : trial ? 'You’re on your free trial.' : 'One plan. Every course.'}</T>
 
 				{error && !data ? <ErrorBox message={errorText(error)} onRetry={() => refetch({ requestPolicy: 'network-only' })} /> : null}
 
-				<Animated.View entering={FadeInDown.duration(180)}>
-					<Card style={{ gap: 14, borderColor: t.amber, borderWidth: 1.5 }}>
-						<View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-							<Text style={{ fontFamily: fonts.display, fontSize: 34, color: t.fg, letterSpacing: -1 }}>{offer?.price ?? (loadingOffer ? '…' : 'Monthly')}</Text>
-							{offer ? <T v="small">/ month</T> : null}
-						</View>
+				<Card tint={t.amber} tintStrength={t.name === 'night' ? 14 : 9} style={{ gap: 16, borderRadius: 24, borderColor: alpha(t.amber, 0.55), borderWidth: 1.5, padding: 20 }}>
+					<View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+						<Text style={{ fontFamily: fonts.display, fontSize: 34, color: t.fg, letterSpacing: -1 }}>
+							{offer?.price ?? (loadingOffer ? '…' : 'Monthly')}
+						</Text>
+						{offer ? <T v="small">/ month</T> : null}
+					</View>
+
+					<View style={{ gap: 12 }}>
 						{PERKS.map((p) => (
-							<View key={p} style={{ flexDirection: 'row', gap: 10 }}>
-								<Check size={18} color={t.success} />
+							<View key={p} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+								<View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: t.successSoft, alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+									<Check size={13} color={t.success} strokeWidth={2.5} />
+								</View>
 								<T style={{ flex: 1 }}>{p}</T>
 							</View>
 						))}
-						{access?.hasAccess ? (
-							<View style={{ gap: 6 }}>
-								<Pill label={trial ? 'Trial' : 'Active'} tone="good" />
-								<T v="small">
-									{trial
-										? `${left} day${left === 1 ? '' : 's'} left: everything is open until ${shortDate(access.until!)}. Subscribe any time; your paid month starts when the trial ends.`
-										: access.source === 'grant'
-											? `Free access from the Kushi team until ${shortDate(access.until!)}.`
-											: access.source === 'staff'
-												? 'Staff access.'
-												: sub?.cancelAtPeriodEnd || !sub
-													? `Paid until ${shortDate(access.until ?? sub!.currentPeriodEnd)}.`
-													: store
-														? `Renews on ${shortDate(sub.currentPeriodEnd)} through ${sub.method === 'app_store' ? 'the App Store' : 'Google Play'}.`
-														: `Paid until ${shortDate(access.until ?? sub.currentPeriodEnd)}.`}
-								</T>
-							</View>
-						) : (
-							<Pill label="Expired" tone="bad" />
-						)}
-					</Card>
-				</Animated.View>
+					</View>
+
+					{access?.hasAccess ? (
+						<View style={{ gap: 6, paddingTop: 4 }}>
+							<Pill label={trial ? 'Trial' : 'Active'} tone="good" />
+							<T v="small">
+								{trial
+									? `${left} day${left === 1 ? '' : 's'} left: everything is open until ${shortDate(access.until!)}. Subscribe any time; your paid month starts when the trial ends.`
+									: access.source === 'grant'
+										? `Free access from the Kushi team until ${shortDate(access.until!)}.`
+										: access.source === 'staff'
+											? 'Staff access.'
+											: sub?.cancelAtPeriodEnd || !sub
+												? `Paid until ${shortDate(access.until ?? sub!.currentPeriodEnd)}.`
+												: store
+													? `Renews on ${shortDate(sub.currentPeriodEnd)} through ${sub.method === 'app_store' ? 'the App Store' : 'Google Play'}.`
+													: `Paid until ${shortDate(access.until ?? sub.currentPeriodEnd)}.`}
+							</T>
+						</View>
+					) : (
+						<Pill label="Expired" tone="bad" />
+					)}
+				</Card>
 
 				{msg ? <T v="bodyStrong" color={t.accent}>{msg}</T> : null}
 
 				{paid ? (
-					store ? <Button kind="solid" title="Manage subscription" onPress={manage} /> : null
+					store ? <Button kind="solid" title="Manage subscription" onPress={manage} style={{ borderRadius: 16 }} /> : null
 				) : purchases.available ? (
 					<View style={{ gap: 10 }}>
-						<Button title={offer ? `Subscribe for ${offer.price} a month` : 'Subscribe'} onPress={buy} busy={busy === 'buy'} disabled={!offer || !!busy} />
-						<Button kind="ghost" title="Restore purchases" onPress={restore} busy={busy === 'restore'} disabled={!!busy} />
+						<Button title={offer ? `Subscribe for ${offer.price} a month` : 'Subscribe'} onPress={buy} busy={busy === 'buy'} disabled={!offer || !!busy} style={{ borderRadius: 16 }} />
+						<Button kind="solid" title="Restore purchases" onPress={restore} busy={busy === 'restore'} disabled={!!busy} style={{ borderRadius: 16 }} />
 						{!offer && !loadingOffer ? <T v="small">The store isn’t answering. Check your connection and try again.</T> : null}
 						<T v="small" style={{ textAlign: 'center' }}>
 							Renews monthly until you cancel. Cancel any time in your {Platform.OS === 'ios' ? 'App Store' : 'Google Play'} subscriptions.
@@ -174,4 +196,3 @@ export default function PlanScreen() {
 		</View>
 	);
 }
-

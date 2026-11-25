@@ -1,6 +1,6 @@
 // One lesson block → one native view (study_web_app src/lib/ui/blocks/Blocks.svelte).
 import { memo, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Platform, ScrollView, Text, View } from 'react-native';
 import Animated, { Easing, FadeInDown, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -204,23 +204,35 @@ function Steps({ title, intro, steps, hue, onStepReveal }: { title: string; intr
 			</View>
 			{intro ? <Html html={intro} hue={hue} style={{ fontSize: 16, lineHeight: 25 }} /> : null}
 			<View>
-				{steps.slice(0, shown).map((s, i) => (
-					<Animated.View key={i} entering={stepEntrance} style={{ flexDirection: 'row', gap: 12, paddingVertical: 14, borderTopWidth: hair, borderStyle: 'dashed', borderColor: t.line }}
-						ref={i === shown - 1 ? newestStep : undefined} collapsable={false}
-						onLayout={i === shown - 1 ? () => {
-							if (pendingScroll.current !== i || !newestStep.current) return;
-							pendingScroll.current = null;
-							onStepReveal?.(newestStep.current);
-						} : undefined}>
-						<View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: hue.soft, alignItems: 'center', justifyContent: 'center' }}>
-							<Text style={{ fontFamily: fonts.readHeavy, color: hue.ink }}>{i + 1}</Text>
-						</View>
-						<View style={{ flex: 1, gap: 4 }}>
-							<Html html={s.title} hue={hue} style={{ fontFamily: fonts.readHeavy, fontSize: 16 }} />
-							<Html html={s.html} hue={hue} style={{ fontSize: 16, lineHeight: 25 }} />
-						</View>
-					</Animated.View>
-				))}
+				{steps.slice(0, shown).map((s, i) => {
+					const StepBox = Platform.OS === 'android' ? View : Animated.View;
+					return (
+						<StepBox
+							key={i}
+							{...(Platform.OS === 'android' ? {} : { entering: stepEntrance })}
+							style={{ flexDirection: 'row', gap: 12, paddingVertical: 14, borderTopWidth: hair, borderStyle: 'dashed', borderColor: t.line }}
+							ref={i === shown - 1 ? newestStep : undefined}
+							collapsable={false}
+							onLayout={
+								i === shown - 1
+									? () => {
+											if (pendingScroll.current !== i || !newestStep.current) return;
+											pendingScroll.current = null;
+											onStepReveal?.(newestStep.current);
+										}
+									: undefined
+							}
+						>
+							<View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: hue.base, alignItems: 'center', justifyContent: 'center' }}>
+								<Text style={{ fontFamily: fonts.readHeavy, fontSize: 13, color: t.onHue }}>{i + 1}</Text>
+							</View>
+							<View style={{ flex: 1, gap: 4 }}>
+								<Html html={s.title} hue={hue} style={{ fontFamily: fonts.readHeavy, fontSize: 16 }} />
+								<Html html={s.html} hue={hue} style={{ fontSize: 16, lineHeight: 25 }} />
+							</View>
+						</StepBox>
+					);
+				})}
 			</View>
 			<View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, paddingTop: 12, borderTopWidth: hair, borderStyle: 'dashed', borderColor: t.line }}>
 				<View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, flexGrow: 1 }}>
@@ -335,10 +347,10 @@ function Think({ prompt, answer, hue }: { prompt: string; answer: string; hue: H
 				</View>
 			</View>
 			{open ? (
-				<Animated.View entering={FadeInDown.duration(300)} style={{ backgroundColor: t.surface, borderRadius: 14, padding: 14, gap: 6 }}>
+				<View style={{ backgroundColor: t.surface2, borderRadius: 14, padding: 14, gap: 6, borderWidth: hair, borderColor: t.line }}>
 					<Eye hue={hue}>Explanation</Eye>
 					<Html html={answer} hue={hue} style={{ fontSize: 16, lineHeight: 25 }} />
-				</Animated.View>
+				</View>
 			) : (
 				<View style={{ flexDirection: 'row' }}>
 					<SmallBtn label="Show the answer" strong hue={hue} onPress={() => setOpen(true)} />

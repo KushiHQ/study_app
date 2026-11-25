@@ -1,6 +1,6 @@
-// Courses: every course, live search, department and level filters (web /courses).
+// Courses: every course, live search, department and level filters (Figma 02 · Courses).
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, RefreshControl, ScrollView, TextInput, View } from 'react-native';
+import { FlatList, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from 'urql';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,8 +9,8 @@ import { CATALOGUE, SEARCH } from '../../lib/api/queries';
 import type { CourseCard as Card, Department, Level } from '../../lib/api/types';
 import { errorText } from '../../lib/api/client';
 import { useSession } from '../../lib/session';
-import { fonts, radius, useTheme } from '../../lib/theme';
-import { Button, Chip, ErrorBox, Press, Reveal, T, hair } from '../../components/ui';
+import { fonts, mix, radius, useTheme } from '../../lib/theme';
+import { Button, ErrorBox, Press, Reveal, T, hair } from '../../components/ui';
 import { CourseCard } from '../../components/CourseCard';
 import { LoadingDots } from '../../components/LoadingDots';
 
@@ -41,46 +41,73 @@ export default function Courses() {
 		return [...all].sort((a, b) => (a.id === mine ? -1 : b.id === mine ? 1 : a.name.localeCompare(b.name)));
 	}, [data?.departments, user?.department?.id]);
 
+	const activeDept = depts.find((x) => x.slug === d);
+
 	const header = (
 		<View style={{ gap: 14, marginBottom: 14 }}>
-			<Reveal style={{ marginTop: 8 }}>
-				<T v="display" accessibilityRole="header">Courses</T>
+			<Reveal style={{ marginTop: 6 }}>
+				<Text accessibilityRole="header" style={{ fontFamily: fonts.bodyBold, fontSize: 30, lineHeight: 35, letterSpacing: -0.6, color: t.fg }}>
+					Courses
+				</Text>
 			</Reveal>
-			<Reveal follow style={{ flexDirection: 'row', alignItems: 'center', gap: 10, height: 50, borderRadius: radius.sm, backgroundColor: t.surface, borderWidth: hair, borderColor: t.line2, paddingHorizontal: 16 }}>
+
+			{/* Search Bar */}
+			<Reveal
+				follow
+				style={{
+					flexDirection: 'row',
+					alignItems: 'center',
+					gap: 10,
+					height: 46,
+					borderRadius: 14,
+					backgroundColor: t.name === 'night' ? mix(t.bg, 30, t.surface) : t.surface,
+					borderWidth: hair,
+					borderColor: t.line2,
+					paddingHorizontal: 14
+				}}
+			>
 				<Search size={18} color={t.muted} />
 				<TextInput
 					value={q}
 					onChangeText={setQ}
-					placeholder="Search by title or code"
+					placeholder="Search title or code..."
 					placeholderTextColor={t.muted}
-					style={{ flex: 1, fontFamily: fonts.body, fontSize: 16, color: t.fg, height: 48 }}
+					style={{ flex: 1, fontFamily: fonts.body, fontSize: 15, color: t.fg, height: 44 }}
 					returnKeyType="search"
 					autoCorrect={false}
 					accessibilityLabel="Search courses"
 				/>
 				{q ? (
 					<Press onPress={() => setQ('')} hitSlop={10} accessibilityLabel="Clear search">
-						<X size={18} color={t.muted} />
+						<X size={17} color={t.muted} />
 					</Press>
 				) : null}
 			</Reveal>
+
+			{/* Department & Level Filter Pills */}
 			{debounced.length < 2 ? (
-				<>
+				<View style={{ gap: 8 }}>
 					<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-						<Chip label="All departments" active={!d} onPress={() => (setD(null), setL(null))} />
+						<FilterPill label="All" active={!d} onPress={() => (setD(null), setL(null))} />
 						{depts.map((x) => (
-							<Chip key={x.id} label={x.name} active={d === x.slug} onPress={() => (setD(x.slug), setL(null))} />
+							<FilterPill key={x.id} label={x.name} active={d === x.slug} onPress={() => (setD(x.slug), setL(null))} />
 						))}
 					</ScrollView>
 					{d && data?.levels.length ? (
 						<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-							<Chip label="All levels" active={!l} onPress={() => setL(null)} />
+							<FilterPill label="All levels" active={!l} onPress={() => setL(null)} />
 							{data.levels.map((x) => (
-								<Chip key={x.code} label={x.name} active={l === x.code} onPress={() => setL(x.code)} />
+								<FilterPill key={x.code} label={x.name} active={l === x.code} onPress={() => setL(x.code)} />
 							))}
 						</ScrollView>
 					) : null}
-				</>
+				</View>
+			) : null}
+
+			{debounced.length < 2 && list.length > 0 ? (
+				<Text style={{ fontFamily: fonts.bodySemi, fontSize: 16, color: t.fg, marginTop: 2 }}>
+					{activeDept ? activeDept.name : 'All courses'}
+				</Text>
 			) : null}
 			{error ? <ErrorBox message={errorText(error)} onRetry={() => refetch({ requestPolicy: 'network-only' })} /> : null}
 		</View>
@@ -89,7 +116,7 @@ export default function Courses() {
 	return (
 		<FlatList
 			style={{ flex: 1, backgroundColor: t.bg }}
-			contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 18, paddingBottom: 24, gap: 10, width: '100%', maxWidth: 720, alignSelf: 'center' }}
+			contentContainerStyle={{ paddingTop: insets.top + 10, paddingHorizontal: 20, paddingBottom: 24, gap: 10, width: '100%', maxWidth: 680, alignSelf: 'center' }}
 			data={list}
 			keyExtractor={(c) => c.slug}
 			ListHeaderComponent={header}
@@ -109,5 +136,28 @@ export default function Courses() {
 				)
 			}
 		/>
+	);
+}
+
+function FilterPill({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+	const t = useTheme();
+	return (
+		<Press
+			haptic
+			onPress={onPress}
+			accessibilityRole="button"
+			accessibilityState={{ selected: active }}
+			style={{
+				paddingHorizontal: 16,
+				height: 34,
+				borderRadius: radius.pill,
+				justifyContent: 'center',
+				backgroundColor: active ? t.fg : t.surface,
+				borderWidth: active ? 0 : hair,
+				borderColor: t.line2
+			}}
+		>
+			<Text style={{ fontFamily: fonts.bodySemi, fontSize: 13, color: active ? t.bg : t.fg2 }}>{label}</Text>
+		</Press>
 	);
 }

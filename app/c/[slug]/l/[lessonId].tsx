@@ -5,11 +5,12 @@ import { useClient, useQuery } from 'urql';
 import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { ArrowLeft, ArrowRight, Check, Clock, List, Lock, RotateCcw } from 'lucide-react-native';
+import { ArrowRight, Check, ChevronLeft, Clock, List, Lock, Music, RotateCcw } from 'lucide-react-native';
 import { COURSE, LESSON } from '../../../../lib/api/queries';
 import type { CourseOutline, CourseProgress, LessonContent, Question } from '../../../../lib/api/types';
 import { errorCode, errorText } from '../../../../lib/api/client';
 import { isCompleted, track, useProgress } from '../../../../lib/progress';
+import { useFocus } from '../../../../lib/focus';
 import { useStudyPrefs } from '../../../../lib/prefs';
 import { alpha, fonts, mix, radius, useTheme, useTint } from '../../../../lib/theme';
 import { fullId, localId } from '../../../../lib/study/ids';
@@ -18,7 +19,6 @@ import { plain } from '../../../../lib/html';
 import { Blocks, Eye } from '../../../../components/blocks/Blocks';
 import { Html } from '../../../../components/Html';
 import { QuestionCard } from '../../../../components/QuestionCard';
-import { FocusControls } from '../../../../components/FocusControls';
 import { ReportSheet, type ReportTarget } from '../../../../components/ReportSheet';
 import { Button, Card, ErrorBox, Loading, LuminousBg, Press, Reveal, T, hair } from '../../../../components/ui';
 
@@ -57,6 +57,11 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 	const [outlineOpen, setOutlineOpen] = useState(false);
 	const textScale = useStudyPrefs((s) => s.textScale);
 	const setTextScale = useStudyPrefs((s) => s.setTextScale);
+	const focusLeft = useFocus((s) => s.left);
+	const focusPhase = useFocus((s) => s.phase);
+	const musicOn = useFocus((s) => s.musicOn);
+	const toggleMusic = useFocus((s) => s.toggleMusic);
+	const clockStr = `${String(Math.floor(focusLeft / 60)).padStart(2, '0')}:${String(focusLeft % 60).padStart(2, '0')}`;
 	const changingLesson = useRef(false);
 
 	// ---- reading progress
@@ -147,27 +152,25 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 
 	return (
 		<View style={{ flex: 1, backgroundColor: t.bg }}>
-			{/* top bar */}
-			<View style={{ paddingTop: insets.top, backgroundColor: t.bg, borderBottomWidth: hair, borderColor: t.line, zIndex: 2 }}>
-				<View style={{ height: 52, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, gap: 6 }}>
-					<Press onPress={goBack} hitSlop={10} accessibilityLabel="Back" style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
-						<ArrowLeft size={22} color={t.fg} />
+			{/* top bar matching Figma 04 · Lesson Reader */}
+			<View style={{ paddingTop: insets.top, backgroundColor: t.bg, zIndex: 2 }}>
+				<View style={{ height: 3.5, backgroundColor: t.surface2 }}>
+					<Animated.View style={[{ height: 3.5, backgroundColor: hue.base }, barStyle]} />
+				</View>
+				<View style={{ height: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, gap: 8 }}>
+					<Press onPress={goBack} hitSlop={10} accessibilityLabel="Back" style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+						<ChevronLeft size={20} color={t.muted} />
+						<Text numberOfLines={1} style={{ fontFamily: fonts.mono, fontSize: 13, color: t.muted, letterSpacing: 0.4 }}>
+							{course?.card.code || 'Back'}
+						</Text>
 					</Press>
-					<View style={{ flex: 1 }}>
-						<Text numberOfLines={1} style={{ fontFamily: fonts.mono, fontSize: 10, letterSpacing: 1.2, color: hue.ink, textTransform: 'uppercase' }}>
-							{course?.card.code} · {unit ? `Unit ${unitIndex + 1}` : ''}
-						</Text>
-						<Text numberOfLines={1} style={{ fontFamily: fonts.bodySemi, fontSize: 14, color: t.fg }}>
-							{plain(lesson?.title ?? outline?.title ?? '')}
-						</Text>
-					</View>
 					{lc && lesson && !locked ? (
-						<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+						<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
 							<View
 								style={{
 									flexDirection: 'row',
 									alignItems: 'center',
-									borderRadius: radius.pill,
+									borderRadius: 10,
 									borderWidth: hair,
 									borderColor: t.line2,
 									backgroundColor: t.surface,
@@ -179,7 +182,7 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 									disabled={textScale <= 0.9}
 									accessibilityLabel="Smaller text"
 									onPress={() => setTextScale(textScale - 0.05)}
-									style={{ paddingHorizontal: 9, height: 32, justifyContent: 'center', opacity: textScale <= 0.9 ? 0.35 : 1 }}
+									style={{ paddingHorizontal: 10, height: 30, justifyContent: 'center', opacity: textScale <= 0.9 ? 0.35 : 1 }}
 								>
 									<Text style={{ fontFamily: fonts.bodySemi, fontSize: 12, color: t.fg2 }}>A−</Text>
 								</Press>
@@ -189,34 +192,29 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 									disabled={textScale >= 1.3}
 									accessibilityLabel="Larger text"
 									onPress={() => setTextScale(textScale + 0.05)}
-									style={{ paddingHorizontal: 9, height: 32, justifyContent: 'center', opacity: textScale >= 1.3 ? 0.35 : 1 }}
+									style={{ paddingHorizontal: 10, height: 30, justifyContent: 'center', opacity: textScale >= 1.3 ? 0.35 : 1 }}
 								>
 									<Text style={{ fontFamily: fonts.bodySemi, fontSize: 12, color: t.fg }}>A+</Text>
 								</Press>
 							</View>
 							<Press
 								haptic
-								accessibilityLabel="Lesson outline"
-								onPress={() => setOutlineOpen(true)}
+								accessibilityLabel="Focus timer"
+								onPress={() => router.push('/focus')}
 								style={{
-									width: 34,
-									height: 34,
-									borderRadius: 17,
+									height: 30,
+									paddingHorizontal: 10,
+									borderRadius: 10,
 									borderWidth: hair,
-									borderColor: t.line2,
-									backgroundColor: t.surface,
-									alignItems: 'center',
+									borderColor: alpha(t.amber, 0.38),
+									backgroundColor: alpha(t.amber, 0.14),
 									justifyContent: 'center'
 								}}
 							>
-								<List size={16} color={t.fg2} />
+								<Text style={{ fontFamily: fonts.mono, fontSize: 12, color: t.accent }}>{clockStr}</Text>
 							</Press>
 						</View>
 					) : null}
-				</View>
-				{lc && lesson && !locked ? <FocusControls /> : null}
-				<View style={{ height: 3, backgroundColor: t.surface2 }}>
-					<Animated.View style={[{ height: 3, backgroundColor: hue.base }, barStyle]} />
 				</View>
 			</View>
 
@@ -235,7 +233,7 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 				</View>
 			) : (
 				<Animated.ScrollView ref={scroll} onLayout={({ nativeEvent }) => viewportHeight.set(nativeEvent.layout.height)}
-					onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 30, paddingBottom: insets.bottom + 36, gap: 26 }}>
+					onScroll={onScroll} scrollEventThrottle={16} contentContainerStyle={{ width: '100%', maxWidth: 680, alignSelf: 'center', paddingHorizontal: 22, paddingTop: 16, paddingBottom: insets.bottom + 104, gap: 24 }}>
 					<Reveal style={{ gap: 10 }}>
 						<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
 							<Clock size={13} color={t.muted} />
@@ -349,6 +347,45 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 					{lc.prev ? <Button kind="ghost" title="Previous lesson" onPress={() => go(lc.prev!.id)} /> : null}
 				</Animated.ScrollView>
 			)}
+			{lc && lesson && !locked ? (
+				<View
+					style={{
+						position: 'absolute',
+						left: 20,
+						right: 20,
+						bottom: Math.max(insets.bottom, 12),
+						alignSelf: 'center',
+						maxWidth: 420,
+						flexDirection: 'row',
+						alignItems: 'center',
+						justifyContent: 'space-around',
+						paddingVertical: 10,
+						paddingHorizontal: 16,
+						borderRadius: 28,
+						backgroundColor: t.surface2,
+						borderWidth: hair,
+						borderColor: t.line2,
+						shadowColor: '#000',
+						shadowOpacity: t.name === 'night' ? 0.45 : 0.14,
+						shadowRadius: 18,
+						shadowOffset: { width: 0, height: 8 }
+					}}
+				>
+					<Press haptic onPress={() => setOutlineOpen(true)} style={{ alignItems: 'center', gap: 3, minWidth: 64 }}>
+						<List size={18} color={t.fg2} />
+						<Text style={{ fontFamily: fonts.bodyMedium, fontSize: 11, color: t.muted }}>Outline</Text>
+					</Press>
+					<Press haptic onPress={() => router.push('/focus')} style={{ alignItems: 'center', gap: 3, minWidth: 64 }}>
+						<Clock size={18} color={focusPhase !== 'idle' ? t.amber : t.accent} />
+						<Text style={{ fontFamily: fonts.bodySemi, fontSize: 11, color: t.accent }}>Focus</Text>
+					</Press>
+					<Press haptic onPress={toggleMusic} style={{ alignItems: 'center', gap: 3, minWidth: 64 }}>
+						<Music size={18} color={musicOn ? t.success : t.fg2} />
+						<Text style={{ fontFamily: fonts.bodyMedium, fontSize: 11, color: musicOn ? t.success : t.muted }}>Music</Text>
+					</Press>
+				</View>
+			) : null}
+
 			<Modal transparent visible={outlineOpen} animationType="fade" onRequestClose={() => setOutlineOpen(false)}>
 				<Pressable style={{ flex: 1, backgroundColor: 'rgba(6,9,19,0.55)', justifyContent: 'flex-end' }} onPress={() => setOutlineOpen(false)}>
 					<Pressable

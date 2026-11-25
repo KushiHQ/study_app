@@ -1,13 +1,11 @@
-import { View } from 'react-native';
-import { ArrowRight } from 'lucide-react-native';
+import { Text, View } from 'react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import type { CourseCard as Card, CourseProgress } from '../lib/api/types';
-import { alpha, mix, radius, useTheme, useTint } from '../lib/theme';
+import { alpha, fonts, mix, radius, useTheme, useTint } from '../lib/theme';
 import { plain } from '../lib/html';
 import { courseHref } from '../lib/nav';
-import { LuminousBg, Press, T, hair } from './ui';
-import { Ring } from './Ring';
-import { CourseHalo } from './CourseHalo';
+import { LuminousBg, Press, hair } from './ui';
 import { CourseIcon } from './CourseIcon';
 
 export function CourseCard({ card, progress, compact }: { card?: Card; progress?: CourseProgress; compact?: boolean }) {
@@ -17,39 +15,58 @@ export function CourseCard({ card, progress, compact }: { card?: Card; progress?
 	const hue = useTint(slug);
 	const code = card?.code ?? progress?.courseCode ?? '';
 	const title = plain(card?.title ?? progress?.courseTitle ?? '');
-	const time = card && (card.minutes >= 90 ? `${Math.round(card.minutes / 60)} h` : `${card.minutes} min`);
+	const meta = progress
+		? `${Math.round(progress.covered * 100)}% covered · ${Math.round(progress.examReady * 100)}% exam-ready`
+		: card
+			? `${card.unitCount} ${card.unitCount === 1 ? 'unit' : 'units'} · ${card.lessonCount} lessons`
+			: '';
 
 	return (
 		<Press
+			haptic
 			onPress={() => router.push(courseHref(slug))}
 			accessibilityRole="button"
 			accessibilityLabel={`${code} ${title}`}
-			style={{ backgroundColor: t.surface, borderRadius: radius.md, borderWidth: hair, borderColor: alpha(hue.base, 0.30), overflow: 'hidden', padding: 17, gap: 10 }}
+			style={{
+				backgroundColor: t.surface,
+				borderRadius: 20,
+				borderWidth: hair,
+				borderColor: alpha(hue.base, 0.28),
+				overflow: 'hidden',
+				padding: compact ? 14 : 16,
+				flexDirection: 'row',
+				alignItems: 'center',
+				gap: 14
+			}}
 		>
-			<LuminousBg from={mix(hue.base, t.name === 'night' ? 16 : 11, t.surface)} to={t.surface} borderRadius={radius.md} />
-			<CourseHalo color={hue.base} />
-			<View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-				<View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: hue.soft, alignItems: 'center', justifyContent: 'center' }}>
-					<CourseIcon name={card?.icon} size={22} color={hue.ink} />
-				</View>
-				<T v="micro" color={hue.ink} style={{ backgroundColor: hue.soft, borderRadius: radius.pill, paddingVertical: 4, paddingHorizontal: 9 }}>{code}</T>
-				<View style={{ flex: 1 }} />
-				<ArrowRight size={18} color={hue.ink} />
+			<LuminousBg from={mix(hue.base, t.name === 'night' ? 14 : 9, t.surface)} to={t.surface} borderRadius={20} />
+			<View
+				style={{
+					width: 48,
+					height: 48,
+					borderRadius: 14,
+					backgroundColor: hue.base,
+					alignItems: 'center',
+					justifyContent: 'center',
+					flexShrink: 0
+				}}
+			>
+				<CourseIcon name={card?.icon} size={23} color={t.onHue} />
 			</View>
-			<T v="h2">{title}</T>
-			{!compact && card?.nickname ? <T numberOfLines={2}>{plain(card.nickname)}</T> : null}
-			{!compact && card && !progress ? (
-				<T v="micro">{card.unitCount} {card.unitCount === 1 ? 'unit' : 'units'} · {card.lessonCount} lessons · {time}</T>
-			) : null}
-			{progress ? (
-				<View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 10, borderTopWidth: hair, borderColor: alpha(hue.base, 0.23) }}>
-					<Ring value={progress.covered} size={42} stroke={4} color={hue.base} track={hue.soft} duration={250} />
-					<View style={{ flex: 1, gap: 2 }}>
-						<T v="bodyStrong">{Math.round(progress.covered * 100)}% covered · {Math.round(progress.examReady * 100)}% exam-ready</T>
-						{progress.nextLesson ? <T v="small" numberOfLines={1}>Next: {plain(progress.nextLesson.title)}</T> : null}
-					</View>
-				</View>
-			) : null}
+			<View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+				<Text numberOfLines={1} style={{ fontFamily: fonts.mono, fontSize: 11, letterSpacing: 0.8, color: hue.ink, textTransform: 'uppercase' }}>
+					{code}
+				</Text>
+				<Text numberOfLines={1} style={{ fontFamily: fonts.bodyBold, fontSize: 16, lineHeight: 21, color: t.fg }}>
+					{title}
+				</Text>
+				{meta ? (
+					<Text numberOfLines={1} style={{ fontFamily: fonts.body, fontSize: 12, color: t.muted }}>
+						{meta}
+					</Text>
+				) : null}
+			</View>
+			<ChevronRight size={18} color={t.muted} />
 		</Press>
 	);
 }

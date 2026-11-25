@@ -1,10 +1,10 @@
-// Course: hero in the course's colour, progress, plan, units and lessons (web /c/[slug]).
+// Course Overview: matches Figma 03 · Course Overview (dual progress rings + inset-grouped unit checklist).
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from 'urql';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, ArrowRight, Check, ChevronDown, Layers, Lock, PenLine, Target, Trophy } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronLeft, Layers, Lock, PenLine, Target, Trophy } from 'lucide-react-native';
 import { COURSE, ENROLL, UPDATE_ENROLLMENT } from '../../../lib/api/queries';
 import type { CourseOutline, CourseProgress, Plan, Today } from '../../../lib/api/types';
 import { errorText, gql } from '../../../lib/api/client';
@@ -14,11 +14,8 @@ import { lessonHref, quizHref } from '../../../lib/nav';
 import { plain } from '../../../lib/html';
 import { addDays, lagosToday } from '../../../lib/study/srs';
 import { shortDate } from '../../../lib/study/ids';
-import { Html } from '../../../components/Html';
 import { Button, Card, ErrorBox, Loading, Press, Reveal, T, hair } from '../../../components/ui';
 import { Ring } from '../../../components/Ring';
-import { CourseIcon } from '../../../components/CourseIcon';
-import { CourseHalo } from '../../../components/CourseHalo';
 
 type Data = { course: CourseOutline; courseProgress: CourseProgress | null; today: Today; plans: Plan[] };
 
@@ -49,7 +46,7 @@ export default function CourseScreen() {
 	if (!data && fetching) return <Loading />;
 	if (!c)
 		return (
-			<View style={{ flex: 1, backgroundColor: t.bg, padding: 18, paddingTop: insets.top + 50 }}>
+			<View style={{ flex: 1, backgroundColor: t.bg, padding: 20, paddingTop: insets.top + 50 }}>
 				<ErrorBox message={error ? errorText(error) : "We couldn't find that course."} onRetry={() => refetch({ requestPolicy: 'network-only' })} />
 			</View>
 		);
@@ -60,143 +57,181 @@ export default function CourseScreen() {
 	const covered = allLessons.length ? completed / allLessons.length : 0;
 	const next = p?.nextLesson ?? allLessons.find((l) => !done(l.id) && !l.locked) ?? allLessons[0];
 	const started = Boolean(p?.startedLessons.length || completed);
-	const time = c.card.minutes >= 90 ? `${Math.round(c.card.minutes / 60)} h` : `${c.card.minutes} min`;
 
 	return (
 		<View style={{ flex: 1, backgroundColor: t.bg }}>
 			<ScrollView
-				contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 40, paddingHorizontal: 18, width: '100%', maxWidth: 760, alignSelf: 'center', gap: 16 }}
+				contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 40, paddingHorizontal: 20, width: '100%', maxWidth: 680, alignSelf: 'center', gap: 18 }}
 				refreshControl={<RefreshControl refreshing={false} tintColor={hue.base} onRefresh={() => refetch({ requestPolicy: 'network-only' })} />}
 			>
-				<Press onPress={() => router.canGoBack() ? router.back() : router.replace('/courses')} accessibilityRole="button" style={{ minHeight: 44, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-					<ArrowLeft size={18} color={t.accent} />
-					<T v="bodyStrong">Back</T>
+				{/* Back Nav */}
+				<Press
+					onPress={() => (router.canGoBack() ? router.back() : router.replace('/courses'))}
+					accessibilityRole="button"
+					style={{ minHeight: 36, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: -4 }}
+				>
+					<ChevronLeft size={20} color={t.muted} />
+					<Text style={{ fontFamily: fonts.bodyMedium, fontSize: 15, color: t.muted }}>Courses</Text>
 				</Press>
-				<Reveal style={{ backgroundColor: hue.wash, borderWidth: hair, borderColor: alpha(hue.base, 0.28), borderRadius: radius.lg, padding: 20, gap: 14, overflow: 'hidden' }}>
-					<CourseHalo color={hue.base} />
-					<View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-						<View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: hue.soft, alignItems: 'center', justifyContent: 'center' }}>
-							<CourseIcon name={c.card.icon} size={25} color={hue.ink} />
-						</View>
-						<View style={{ flex: 1, gap: 3 }}>
-							<T v="label" color={hue.ink}>{c.card.code}</T>
-							<T v="small">{c.units.length} {c.units.length === 1 ? 'unit' : 'units'} · {allLessons.length} lessons · {time}</T>
-						</View>
+
+				{/* Course Code Pill + Title */}
+				<Reveal style={{ gap: 10 }}>
+					<View style={{ alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: alpha(hue.base, 0.16) }}>
+						<Text style={{ fontFamily: fonts.mono, fontSize: 12, color: hue.ink, letterSpacing: 0.6 }}>{c.card.code}</Text>
 					</View>
-					<T v="display" accessibilityRole="header">{plain(c.card.title)}</T>
-					{c.card.nickname ? <T>{plain(c.card.nickname)}</T> : null}
-					{next ? (
-						<View style={{ gap: 8 }}>
-							<T v="small">{started ? 'Next' : 'First'}: {plain(next.title)}</T>
-							<Button title={started ? 'Continue' : 'Start the course'} icon={<ArrowRight size={17} color={t.onAmber} />} onPress={() => router.push(lessonHref(c.card.slug, next.id))} />
-						</View>
-					) : null}
-					{started || p ? (
-						<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14, borderTopWidth: hair, borderColor: alpha(hue.base, 0.26), paddingTop: 14 }}>
-							<ProgressStat value={covered} label="Covered" color={hue.base} track={hue.soft} />
-							<ProgressStat value={p?.examReady ?? 0} label="Exam-ready" color={t.success} track={hue.soft} />
-						</View>
-					) : null}
+					<Text accessibilityRole="header" style={{ fontFamily: fonts.bodyBold, fontSize: 26, lineHeight: 32, letterSpacing: -0.5, color: t.fg }}>
+						{plain(c.card.title)}
+					</Text>
 				</Reveal>
 
-				<View style={{ gap: 16 }}>
-					{!c.viewerHasAccess ? (
-						<Card style={{ gap: 8, backgroundColor: t.accentSoft, borderColor: 'transparent' }}>
-							<T v="bodyStrong">The first lesson is free.</T>
-							<T>One plan opens every lesson, quiz and flashcard in every course.</T>
-							<Button small title="See the plan" onPress={() => router.push('/plan')} style={{ alignSelf: 'flex-start' }} />
-						</Card>
-					) : null}
+				{/* Dual Progress Rings + Full-Width Continue Card */}
+				<Reveal follow>
+					<Card tint={hue.base} tintStrength={t.name === 'night' ? 10 : 6} style={{ padding: 20, borderRadius: 24, gap: 18, alignItems: 'center' }}>
+						<View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 36 }}>
+							<RingStat value={covered} label="Covered" color={t.amber} track={t.line2} />
+							<RingStat value={p?.examReady ?? 0} label="Exam-ready" color={t.success} track={t.line2} />
+						</View>
+						{next ? (
+							<Button
+								title={started ? 'Continue' : 'Start course'}
+								onPress={() => router.push(lessonHref(c.card.slug, next.id))}
+								style={{ alignSelf: 'stretch', borderRadius: 16 }}
+							/>
+						) : null}
+					</Card>
+				</Reveal>
 
-					<Reveal follow style={{ flexDirection: 'row', gap: 10 }}>
-						<Tool label="Flashcards" sub={p?.cardsDue ? `${p.cardsDue} due` : `${c.flashcardCount} cards`} Icon={Layers} onPress={() => router.push(`/c/${c.card.slug}/cards` as never)} disabled={!c.flashcardCount} />
-						<Tool label="Practice" sub={`${c.practiceCount} questions`} Icon={PenLine} onPress={() => router.push(`/c/${c.card.slug}/practice` as never)} disabled={!c.practiceCount} />
-						<Tool label="Final quiz" sub={p?.finalQuizBest != null ? `Best ${Math.round(p.finalQuizBest * 100)}%` : `${c.finalQuizCount} questions`} Icon={Trophy} onPress={() => router.push(quizHref(c.card.slug, 'final') as never)} disabled={!c.finalQuizCount} />
-					</Reveal>
+				{!c.viewerHasAccess ? (
+					<Card tint={t.amber} tintStrength={12} style={{ gap: 8 }}>
+						<T v="bodyStrong">The first lesson is free.</T>
+						<T v="small">One plan opens every lesson, quiz and flashcard in every course.</T>
+						<Button small title="See the plan" onPress={() => router.push('/plan')} style={{ alignSelf: 'flex-start' }} />
+					</Card>
+				) : null}
 
-					<T v="title" accessibilityRole="header" style={{ marginTop: 6 }}>
-						The route
-					</T>
-					{c.units.map((u, ui) => {
-						const isOpen = open[u.id] ?? u.id === firstOpenUnit;
-						const doneCount = u.lessons.filter((l) => done(l.id)).length;
-						return (
-							<View key={u.id} style={{ backgroundColor: t.surface, borderRadius: radius.md, borderWidth: hair, borderColor: t.line, overflow: 'hidden' }}>
-								<Press onPress={() => setOpen({ ...open, [u.id]: !isOpen })} accessibilityRole="button" accessibilityState={{ expanded: isOpen }} style={{ padding: 16, flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-									<Ring value={u.lessons.length ? doneCount / u.lessons.length : 0} size={44} stroke={4} color={hue.base} track={hue.soft} duration={250}>
-										{doneCount > 0 && doneCount === u.lessons.length ? <Check size={17} color={t.success} /> : <T v="micro" color={hue.ink}>{doneCount}/{u.lessons.length}</T>}
-									</Ring>
-									<View style={{ flex: 1 }}>
-										<T v="micro" color={hue.ink}>Unit {ui + 1}</T>
-										<Text style={{ fontFamily: fonts.bodyBold, fontSize: 16, color: t.fg }}>{plain(u.title)}</Text>
-										<T v="small">
-											{doneCount}/{u.lessons.length} lessons{u.quizCount ? ` · quiz of ${u.quizCount}` : ''}
-										</T>
-									</View>
-									<View style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }}>
-										<ChevronDown size={20} color={t.muted} />
-									</View>
-								</Press>
-								{isOpen ? (
-									<View style={{ paddingHorizontal: 16, paddingBottom: 14, gap: 4 }}>
-										{u.summary ? <Html html={u.summary} read={false} style={{ fontSize: 14, lineHeight: 20, color: t.muted }} /> : null}
-										{u.lessons.map((l) => {
-											const d = done(l.id);
-											const here = !d && next?.id === l.id;
-											return (
-												<Press
-													key={l.id}
-													onPress={() => router.push(lessonHref(c.card.slug, l.id) as never)}
-													accessibilityRole="button"
-													accessibilityLabel={`${l.title}${l.locked ? ', locked' : d ? ', done' : ''}`}
-													style={{ flexDirection: 'row', gap: 12, alignItems: 'center', paddingVertical: 10, paddingHorizontal: 8, borderRadius: 12, backgroundColor: here ? hue.wash : 'transparent' }}
-												>
-													<View style={{ width: 25, height: 25, borderRadius: 13, borderWidth: 1.5, borderColor: d ? t.success : here ? hue.base : t.line2, backgroundColor: d ? t.successSoft : here ? hue.soft : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-														{d ? <Check size={14} color={t.success} /> : l.locked ? <Lock size={12} color={t.muted} /> : here ? <ArrowRight size={13} color={hue.ink} /> : null}
-													</View>
-													<View style={{ flex: 1 }}>
-														<Text style={{ fontFamily: here ? fonts.bodyBold : fonts.bodyMedium, fontSize: 15, color: l.locked ? t.muted : t.fg }}>{plain(l.title)}</Text>
-														{l.tagline ? (
-															<T v="small" numberOfLines={1}>
-																{plain(l.tagline)}
-															</T>
-														) : null}
-													</View>
-													<T v="small">{l.minutes}m</T>
-												</Press>
-											);
-										})}
-										{u.quizCount ? (
-											<Press onPress={() => router.push(quizHref(c.card.slug, u.id) as never)} style={{ flexDirection: 'row', gap: 12, alignItems: 'center', paddingVertical: 10, paddingHorizontal: 8 }}>
-												<Target size={22} color={hue.base} />
-												<Text style={{ fontFamily: fonts.bodySemi, fontSize: 15, color: hue.ink }}>Unit quiz · {u.quizCount} questions</Text>
-											</Press>
-										) : null}
-									</View>
-								) : null}
-							</View>
-						);
-					})}
-					<PlanCard slug={c.card.slug} p={p} onSaved={() => refetch({ requestPolicy: 'network-only' })} />
-					{c.labs.length ? (
-						<Card style={{ gap: 6 }}>
-							<T v="bodyStrong">Labs</T>
-							<T>Labs open on the website for now: study.kushi.ng/c/{c.card.slug}.</T>
-						</Card>
-					) : null}
+				{/* Quick Study Tools */}
+				<View style={{ flexDirection: 'row', gap: 10 }}>
+					<Tool label="Flashcards" sub={p?.cardsDue ? `${p.cardsDue} due` : `${c.flashcardCount}`} Icon={Layers} onPress={() => router.push(`/c/${c.card.slug}/cards` as never)} disabled={!c.flashcardCount} />
+					<Tool label="Practice" sub={`${c.practiceCount} Qs`} Icon={PenLine} onPress={() => router.push(`/c/${c.card.slug}/practice` as never)} disabled={!c.practiceCount} />
+					<Tool label="Final quiz" sub={p?.finalQuizBest != null ? `${Math.round(p.finalQuizBest * 100)}%` : `${c.finalQuizCount} Qs`} Icon={Trophy} onPress={() => router.push(quizHref(c.card.slug, 'final') as never)} disabled={!c.finalQuizCount} />
 				</View>
+
+				{/* Units — Inset-Grouped Checklist */}
+				{c.units.map((u, ui) => {
+					const isOpen = open[u.id] ?? u.id === firstOpenUnit;
+					return (
+						<View key={u.id} style={{ gap: 10 }}>
+							<Press
+								onPress={() => setOpen({ ...open, [u.id]: !isOpen })}
+								accessibilityRole="button"
+								accessibilityState={{ expanded: isOpen }}
+								style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}
+							>
+								<Text numberOfLines={1} style={{ flex: 1, fontFamily: fonts.bodyBold, fontSize: 17, color: t.fg }}>
+									Unit {ui + 1} · {plain(u.title)}
+								</Text>
+								<View style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }}>
+									<ChevronDown size={18} color={t.muted} />
+								</View>
+							</Press>
+
+							{isOpen ? (
+								<Card padded={false} style={{ borderRadius: 20 }}>
+									{u.lessons.map((l, li) => {
+										const d = done(l.id);
+										const here = !d && next?.id === l.id;
+										return (
+											<Press
+												key={l.id}
+												haptic
+												onPress={() => router.push(lessonHref(c.card.slug, l.id) as never)}
+												accessibilityRole="button"
+												accessibilityLabel={`${l.title}${l.locked ? ', locked' : d ? ', done' : ''}`}
+												style={{
+													flexDirection: 'row',
+													alignItems: 'center',
+													gap: 12,
+													paddingVertical: 14,
+													paddingHorizontal: 16,
+													borderTopWidth: li === 0 ? 0 : hair,
+													borderColor: t.line
+												}}
+											>
+												{d ? (
+													<View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: t.success, alignItems: 'center', justifyContent: 'center' }}>
+														<Check size={13} color={t.onHue} strokeWidth={2.6} />
+													</View>
+												) : here ? (
+													<View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: alpha(t.amber, 0.22), alignItems: 'center', justifyContent: 'center' }}>
+														<View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: t.amber }} />
+													</View>
+												) : l.locked ? (
+													<View style={{ width: 22, height: 22, alignItems: 'center', justifyContent: 'center' }}>
+														<Lock size={15} color={t.muted} />
+													</View>
+												) : (
+													<View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: t.line2 }} />
+												)}
+												<Text
+													numberOfLines={1}
+													style={{
+														flex: 1,
+														fontFamily: here ? fonts.bodySemi : fonts.bodyMedium,
+														fontSize: 14.5,
+														color: here ? t.accent : l.locked ? t.muted : t.fg
+													}}
+												>
+													{ui + 1}.{li + 1} {plain(l.title)}
+												</Text>
+											</Press>
+										);
+									})}
+									{u.quizCount ? (
+										<Press
+											haptic
+											onPress={() => router.push(quizHref(c.card.slug, u.id) as never)}
+											style={{
+												flexDirection: 'row',
+												alignItems: 'center',
+												gap: 12,
+												paddingVertical: 14,
+												paddingHorizontal: 16,
+												borderTopWidth: hair,
+												borderColor: t.line
+											}}
+										>
+											<Target size={18} color={hue.base} />
+											<Text style={{ fontFamily: fonts.bodySemi, fontSize: 14.5, color: hue.ink }}>
+												Unit {ui + 1} quiz · {u.quizCount} questions
+											</Text>
+										</Press>
+									) : null}
+								</Card>
+							) : null}
+						</View>
+					);
+				})}
+
+				<PlanCard slug={c.card.slug} p={p} onSaved={() => refetch({ requestPolicy: 'network-only' })} />
+				{c.labs.length ? (
+					<Card style={{ gap: 6 }}>
+						<T v="bodyStrong">Labs</T>
+						<T v="small">Interactive labs open on study.kushi.ng/c/{c.card.slug}.</T>
+					</Card>
+				) : null}
 			</ScrollView>
 		</View>
 	);
 }
 
-function ProgressStat({ value, label, color, track }: { value: number; label: string; color: string; track: string }) {
+function RingStat({ value, label, color, track }: { value: number; label: string; color: string; track: string }) {
+	const t = useTheme();
 	return (
-		<View style={{ flex: 1, minWidth: 112, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-			<Ring value={value} size={46} stroke={4.5} color={color} track={track} duration={300}>
-				<T v="micro">{Math.round(value * 100)}%</T>
+		<View style={{ alignItems: 'center', gap: 8 }}>
+			<Ring value={value} size={82} stroke={7} color={color} track={track} duration={350}>
+				<Text style={{ fontFamily: fonts.bodyBold, fontSize: 19, color: t.fg }}>{Math.round(value * 100)}%</Text>
 			</Ring>
-			<T v="small" style={{ flexShrink: 1 }}>{label}</T>
+			<Text style={{ fontFamily: fonts.bodyMedium, fontSize: 12, color: t.muted }}>{label}</Text>
 		</View>
 	);
 }
@@ -204,17 +239,16 @@ function ProgressStat({ value, label, color, track }: { value: number; label: st
 function Tool({ label, sub, Icon, onPress, disabled }: { label: string; sub: string; Icon: typeof Layers; onPress: () => void; disabled?: boolean }) {
 	const t = useTheme();
 	return (
-		<Press haptic onPress={onPress} disabled={disabled} accessibilityRole="button" style={{ flex: 1, backgroundColor: t.surface, borderRadius: radius.md, borderWidth: hair, borderColor: t.line, padding: 12, gap: 6, opacity: disabled ? 0.45 : 1 }}>
-			<Icon size={20} color={t.accent} />
-			<Text style={{ fontFamily: fonts.bodyBold, fontSize: 14, color: t.fg }}>{label}</Text>
-			<T v="small">{sub}</T>
-		</Press>
+		<Card onPress={disabled ? undefined : onPress} style={{ flex: 1, padding: 12, borderRadius: 16, gap: 5, opacity: disabled ? 0.45 : 1 }}>
+			<Icon size={18} color={t.accent} />
+			<Text style={{ fontFamily: fonts.bodyBold, fontSize: 13.5, color: t.fg }}>{label}</Text>
+			<Text style={{ fontFamily: fonts.body, fontSize: 11.5, color: t.muted }}>{sub}</Text>
+		</Card>
 	);
 }
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-/** Add to my courses / exam date / study days (web course page "plan" card). */
 function PlanCard({ slug, p, onSaved }: { slug: string; p: CourseProgress | null; onSaved: () => void }) {
 	const t = useTheme();
 	const hue = useTint(slug);
@@ -243,8 +277,8 @@ function PlanCard({ slug, p, onSaved }: { slug: string; p: CourseProgress | null
 		return (
 			<Card style={{ gap: 6 }}>
 				<T v="bodyStrong">In your courses</T>
-				<T>{p?.enrollment?.examDate ? `Exam on ${shortDate(p.enrollment.examDate)}. Today's plan paces you to it.` : 'No exam date yet. Add one and Today paces you to it.'}</T>
-				<Button small kind="solid" title="Change plan" onPress={() => setEdit(true)} style={{ alignSelf: 'flex-start' }} />
+				<T v="small">{p?.enrollment?.examDate ? `Exam on ${shortDate(p.enrollment.examDate)}. Today's plan paces you to it.` : 'No exam date yet. Add one and Today paces you to it.'}</T>
+				<Button small kind="solid" title="Change plan" onPress={() => setEdit(true)} style={{ alignSelf: 'flex-start', marginTop: 4 }} />
 			</Card>
 		);
 

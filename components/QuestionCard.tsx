@@ -5,9 +5,9 @@ import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { ArrowDown, ArrowUp, Check, Flag, X } from 'lucide-react-native';
 import type { Question } from '../lib/api/types';
-import { fonts, useTheme, type HueSet } from '../lib/theme';
+import { alpha, fonts, useTheme, type HueSet } from '../lib/theme';
 import { Html } from './Html';
-import { Button, Press, T, hair } from './ui';
+import { Button, Card, Press, T, hair } from './ui';
 
 const LETTERS = 'ABCDEFGH';
 
@@ -65,30 +65,45 @@ export function QuestionCard({
 		onAnswer?.(ok, response);
 	};
 
-	const msg = correct ? 'Correct' : 'Incorrect';
+	const msg = correct ? 'Spot on.' : "Good try. Here's why.";
 	const optStyle = (state: 'idle' | 'right' | 'wrong' | 'dim' | 'on') => ({
 		flexDirection: 'row' as const,
 		alignItems: 'center' as const,
 		gap: 12,
 		padding: 14,
 		borderRadius: 16,
-		borderWidth: state === 'idle' || state === 'dim' ? hair : 1.8,
+		borderWidth: state === 'idle' || state === 'dim' ? hair : 1.5,
 		borderColor: state === 'right' ? t.success : state === 'wrong' ? t.danger : state === 'on' ? hue.base : t.line2,
-		backgroundColor: state === 'right' ? t.successSoft : state === 'wrong' ? t.dangerSoft : state === 'on' ? hue.wash : t.surface,
-		opacity: state === 'dim' ? 0.55 : 1
+		backgroundColor: state === 'right' ? alpha(t.success, 0.14) : state === 'wrong' ? alpha(t.danger, 0.14) : state === 'on' ? hue.wash : t.surface,
+		opacity: state === 'dim' ? 0.52 : 1
 	});
 	const badge = (i: number, state: 'idle' | 'right' | 'wrong' | 'dim' | 'on', square = false) => (
-		<View style={{ width: 30, height: 30, borderRadius: square ? 8 : 15, alignItems: 'center', justifyContent: 'center', backgroundColor: state === 'right' ? t.success : state === 'wrong' ? t.danger : state === 'on' ? hue.base : t.surface2 }}>
-			{state === 'right' ? <Check size={16} color="#fff" /> : state === 'wrong' ? <X size={16} color="#fff" /> : <Text style={{ fontFamily: fonts.readHeavy, color: state === 'on' ? t.onHue : t.fg2 }}>{LETTERS[i]}</Text>}
+		<View
+			style={{
+				width: 28,
+				height: 28,
+				borderRadius: square ? 8 : 14,
+				alignItems: 'center',
+				justifyContent: 'center',
+				backgroundColor: state === 'right' ? alpha(t.success, 0.24) : state === 'wrong' ? alpha(t.danger, 0.24) : state === 'on' ? hue.base : t.surface2
+			}}
+		>
+			<Text style={{ fontFamily: fonts.bodyBold, fontSize: 13, color: state === 'right' ? t.success : state === 'wrong' ? t.danger : state === 'on' ? t.onHue : t.muted }}>
+				{LETTERS[i]}
+			</Text>
 		</View>
 	);
 
 	return (
-		<View style={{ gap: 12 }}>
-			<View style={{ flexDirection: 'row', gap: 8 }}>
-				{number ? <Text style={{ fontFamily: fonts.readHeavy, fontSize: 16, lineHeight: 26, color: hue.ink }}>{number}</Text> : null}
+		<View style={{ gap: 14 }}>
+			<View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+				{number ? (
+					<View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: t.amber, alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+						<Text style={{ fontFamily: fonts.bodyBold, fontSize: 13, color: t.onAmber }}>{number.replace(/\.$/, '')}</Text>
+					</View>
+				) : null}
 				<View style={{ flex: 1 }}>
-					<Html html={q.prompt} hue={hue} style={{ fontFamily: fonts.readBold, fontSize: 17, lineHeight: 26 }} />
+					<Html html={q.prompt} hue={hue} style={{ fontFamily: fonts.readBold, fontSize: 17, lineHeight: 25 }} />
 				</View>
 				{onReport ? (
 					<Press onPress={onReport} hitSlop={10} accessibilityLabel="Report a problem with this question">
@@ -98,15 +113,24 @@ export function QuestionCard({
 			</View>
 
 			{q.type === 'single' ? (
-				<View style={{ gap: 8 }}>
+				<View style={{ gap: 10 }}>
 					{q.options.map((o, i) => {
 						const st = done ? (i === q.answer ? 'right' : picked === i ? 'wrong' : 'dim') : 'idle';
 						return (
 							<Press key={i} haptic={!done} disabled={done} onPress={() => (setPicked(i), finish(i === q.answer, { choice: i }))} accessibilityRole="button" style={optStyle(st)}>
 								{badge(i, st)}
 								<View style={{ flex: 1 }}>
-									<Html html={o} hue={hue} style={{ fontSize: 16, lineHeight: 23 }} />
+									<Html html={o} hue={hue} style={{ fontSize: 15.5, lineHeight: 22, color: st === 'right' ? t.success : st === 'dim' ? t.muted : t.fg }} />
 								</View>
+								{st === 'right' ? (
+									<View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: t.success, alignItems: 'center', justifyContent: 'center' }}>
+										<Check size={13} color={t.onHue} strokeWidth={2.6} />
+									</View>
+								) : st === 'wrong' ? (
+									<View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: t.danger, alignItems: 'center', justifyContent: 'center' }}>
+										<X size={13} color="#fff" strokeWidth={2.6} />
+									</View>
+								) : null}
 							</Press>
 						);
 					})}

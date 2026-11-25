@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from 'urql';
+import * as Sentry from '@sentry/react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Check, ChevronDown, ChevronLeft, Layers, Lock, PenLine, Target, Trophy } from 'lucide-react-native';
 import { COURSE, ENROLL, UPDATE_ENROLLMENT } from '../../../lib/api/queries';
@@ -15,12 +16,21 @@ import { plain } from '../../../lib/html';
 import { addDays, lagosToday } from '../../../lib/study/srs';
 import { shortDate } from '../../../lib/study/ids';
 import { Button, Card, ErrorBox, Loading, Press, Reveal, T, hair } from '../../../components/ui';
+import { ErrorBoundary } from '../../../components/ErrorBoundary';
 import { Ring } from '../../../components/Ring';
 
 type Data = { course: CourseOutline; courseProgress: CourseProgress | null; today: Today; plans: Plan[] };
 
 export default function CourseScreen() {
 	const { slug } = useLocalSearchParams<{ slug: string }>();
+	return (
+		<ErrorBoundary context={`course:${slug ?? 'unknown'}`}>
+			<CourseScreenInner slug={slug} />
+		</ErrorBoundary>
+	);
+}
+
+function CourseScreenInner({ slug }: { slug: string }) {
 	const t = useTheme();
 	const hue = useTint(slug);
 	const router = useRouter();
@@ -29,6 +39,10 @@ export default function CourseScreen() {
 	const synced = useProgress((s) => s.synced);
 	const [{ data, error, fetching }, refetch] = useQuery<Data>({ query: COURSE, variables: { slug, signedIn: true, preview: null } });
 	const [open, setOpen] = useState<Record<string, boolean>>({});
+
+	useEffect(() => {
+		if (slug) Sentry.addBreadcrumb({ category: 'navigation', message: `Open course ${slug}`, level: 'info' });
+	}, [slug]);
 
 	useEffect(() => {
 		refetch({ requestPolicy: 'network-only' });

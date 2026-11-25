@@ -72,14 +72,14 @@ export function LuminousBg({ from, to, borderRadius = radius.md }: { from: strin
 	const gid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
 	return (
 		<View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius, overflow: 'hidden' }]}>
-			<Svg width="100%" height="100%" preserveAspectRatio="none">
+			<Svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
 				<Defs>
 					<LinearGradient id={`lum-${gid}`} x1="0%" y1="0%" x2="88%" y2="100%">
 						<Stop offset="0%" stopColor={from} stopOpacity="1" />
 						<Stop offset="72%" stopColor={to} stopOpacity="1" />
 					</LinearGradient>
 				</Defs>
-				<Rect x="0" y="0" width="100%" height="100%" fill={`url(#lum-${gid})`} />
+				<Rect x="0" y="0" width="100" height="100" fill={`url(#lum-${gid})`} />
 			</Svg>
 		</View>
 	);
@@ -485,7 +485,7 @@ export function CanvasGlow() {
 	const night = t.name === 'night';
 	return (
 		<View pointerEvents="none" style={[StyleSheet.absoluteFill, { height: 340, overflow: 'hidden' }]}>
-			<Svg width="100%" height="100%" preserveAspectRatio="none">
+			<Svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
 				<Defs>
 					<RadialGradient id="cg-left" cx="12%" cy="0%" r="65%">
 						<Stop offset="0%" stopColor={night ? '#6366F1' : '#7C5CE0'} stopOpacity={night ? '0.16' : '0.07'} />
@@ -496,8 +496,8 @@ export function CanvasGlow() {
 						<Stop offset="100%" stopColor={t.bg} stopOpacity="0" />
 					</RadialGradient>
 				</Defs>
-				<Rect x="0" y="0" width="100%" height="100%" fill="url(#cg-left)" />
-				<Rect x="0" y="0" width="100%" height="100%" fill="url(#cg-right)" />
+				<Rect x="0" y="0" width="100" height="100" fill="url(#cg-left)" />
+				<Rect x="0" y="0" width="100" height="100" fill="url(#cg-right)" />
 			</Svg>
 		</View>
 	);

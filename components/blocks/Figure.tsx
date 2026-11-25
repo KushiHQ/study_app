@@ -17,15 +17,17 @@ type FigureBlock = Extract<Block, { type: 'figure' }>;
 
 export function Figure({ block, hue, width }: { block: FigureBlock; hue: HueSet; width: number }) {
 	const t = useTheme();
-	const { image, spots, steps = [], marks = [], caption } = block;
+	const { image, spots = [], steps = [], marks = [], caption } = block;
 	const [active, setActive] = useState<number | null>(null);
 	const [cur, setCur] = useState(-1); // -1: everything shown
 	const [failed, setFailed] = useState(false);
 	const w = Math.max(1, width - 2 * hair);
-	const scale = w / (image.width || 1);
-	const h = (image.height || 1) * scale;
+	const imgW = image?.width && Number.isFinite(image.width) && image.width > 0 ? image.width : 1;
+	const imgH = image?.height && Number.isFinite(image.height) && image.height > 0 ? image.height : 1;
+	const scale = w / imgW;
+	const h = Math.max(1, imgH * scale);
 	const visible = (step?: number) => cur < 0 || step == null || step <= cur;
-	const colorOf = (m: FigureMark) => (m.hue === 'accent' || !m.hue ? hue.base : m.hue === 'ink' ? t.fg : t.hues[m.hue as Hue].base);
+	const colorOf = (m: FigureMark) => (m.hue === 'accent' || !m.hue ? hue.base : m.hue === 'ink' ? t.fg : t.hues[m.hue as Hue]?.base ?? hue.base);
 	const shownMarks = useMemo(() => marks.filter((m) => visible(m.step)), [marks, cur]);
 
 	return (
@@ -40,7 +42,7 @@ export function Figure({ block, hue, width }: { block: FigureBlock; hue: HueSet;
 						<Image source={{ uri: image.src }} style={{ width: w, height: h }} contentFit="contain" transition={250} accessibilityLabel={image.alt} onError={() => setFailed(true)} />
 					)}
 					{shownMarks.length ? (
-						<Svg width={w} height={h} viewBox={`0 0 ${image.width} ${image.height}`} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
+						<Svg width={w} height={h} viewBox={`0 0 ${imgW} ${imgH}`} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
 							<Defs>
 								{shownMarks.map((m, i) => (
 									<Marker key={i} id={`fa${i}`} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">

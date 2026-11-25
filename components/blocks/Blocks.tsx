@@ -12,6 +12,7 @@ import { alpha, fonts, mix, radius, useTheme, type HueSet } from '../../lib/them
 import { DisplayMath, Grid, Html, useHtmlCtx } from '../Html';
 import { CodeRuns } from '../CodeRuns';
 import { LuminousBg, Press, T, hair } from '../ui';
+import { ErrorBoundary } from '../ErrorBoundary';
 import { KushiEmoji, type KushiEmojiName } from '../KushiEmoji';
 import { Diagram } from './Diagram';
 import { Figure } from './Figure';
@@ -34,12 +35,18 @@ export const Blocks = memo(function Blocks({ blocks, hue, viewport, onReport, on
 				const onLongPress = onReport && b.type !== 'heading' ? () => onReport(b.key ?? `#${i + 1}`, KIND[b.type] ?? 'this part') : undefined;
 				if ((b.type === 'trace' && b.states.length > 1) || (b.type === 'diagram' && b.steps?.length)) {
 					return (
-						<VisiblePlayback key={key} viewport={viewport} contentTop={contentTop} diagram={b.type === 'diagram'}>
-							{(autoplay) => <BlockView b={b} hue={hue} width={width} autoplay={autoplay} onLongPress={onLongPress} />}
-						</VisiblePlayback>
+						<ErrorBoundary key={key} compact context={`block:${b.type}:${key}`}>
+							<VisiblePlayback viewport={viewport} contentTop={contentTop} diagram={b.type === 'diagram'}>
+								{(autoplay) => <BlockView b={b} hue={hue} width={width} autoplay={autoplay} onLongPress={onLongPress} />}
+							</VisiblePlayback>
+						</ErrorBoundary>
 					);
 				}
-				return <BlockView key={key} b={b} hue={hue} width={width} onStepReveal={onStepReveal} onLongPress={onLongPress} />;
+				return (
+					<ErrorBoundary key={key} compact context={`block:${b.type}:${key}`}>
+						<BlockView b={b} hue={hue} width={width} onStepReveal={onStepReveal} onLongPress={onLongPress} />
+					</ErrorBoundary>
+				);
 			})}
 		</View>
 	);

@@ -17,7 +17,13 @@ type Attrs = Record<string, string | number | undefined>;
 function classAttrs(cls: string[], tag: string, t: Palette, hue?: HueSet): Attrs {
 	const a: Attrs = {};
 	const acc = hue ?? { base: t.amber, ink: t.accent, soft: t.accentSoft, wash: t.accentSoft };
-	const H = (n: string): HueSet => (n === 'accent' ? acc : t.hues[n as Hue]);
+	const H = (n: string): HueSet => {
+		if (n === 'accent') return acc;
+		if (n === 'good' || n === 'success') return { base: t.success, ink: t.success, soft: t.successSoft, wash: t.successSoft };
+		if (n === 'bad' || n === 'danger') return { base: t.danger, ink: t.danger, soft: t.dangerSoft, wash: t.dangerSoft };
+		if (n === 'muted') return { base: t.muted, ink: t.muted, soft: t.surface2, wash: t.surface2 };
+		return t.hues[n as Hue] ?? acc;
+	};
 	const isText = tag === 'text' || tag === 'tspan';
 	if (isText) {
 		a.fill = t.fg;
@@ -210,10 +216,14 @@ export const SvgTree = memo(function SvgTree({
 	const win = useWindowDimensions();
 	const node = useMemo(() => root ?? parse(svg ?? '').find((x) => x.name === 'svg'), [root, svg]);
 	if (!node) return null;
-	const vb = (node.attrs.viewBox ?? node.attrs.viewbox ?? `0 0 ${node.attrs.width ?? 300} ${node.attrs.height ?? 150}`).split(/[\s,]+/).map(Number);
+	const rawVb = (node.attrs.viewBox ?? node.attrs.viewbox ?? `0 0 ${node.attrs.width ?? 300} ${node.attrs.height ?? 150}`).trim().split(/[\s,]+/).map(Number);
+	const vb: [number, number, number, number] =
+		rawVb.length >= 4 && rawVb.slice(0, 4).every((n) => Number.isFinite(n)) && rawVb[2] > 0 && rawVb[3] > 0
+			? [rawVb[0], rawVb[1], rawVb[2], rawVb[3]]
+			: [0, 0, 300, 150];
 	const [, , vw, vh] = vb;
-	const width = Math.min(maxWidth ?? win.width - 36, (vw || 300) * 1.6);
-	const height = vh && vw ? (width * vh) / vw : 150;
+	const width = Math.max(1, Math.min(maxWidth ?? Math.max(1, win.width - 36), vw * 1.6));
+	const height = Math.max(1, (width * vh) / vw);
 	const c: DrawCtx = { t, hue, step, activePart, onPart };
 	return (
 		<Svg width={width} height={height} viewBox={vb.join(' ')} accessibilityLabel={node.attrs['aria-label']}>

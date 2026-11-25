@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { AppState, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useClient, useQuery } from 'urql';
+import * as Sentry from '@sentry/react-native';
 import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -21,6 +22,7 @@ import { Html } from '../../../../components/Html';
 import { QuestionCard } from '../../../../components/QuestionCard';
 import { ReportSheet, type ReportTarget } from '../../../../components/ReportSheet';
 import { Button, Card, ErrorBox, Loading, LuminousBg, Press, Reveal, T, hair } from '../../../../components/ui';
+import { ErrorBoundary } from '../../../../components/ErrorBoundary';
 
 type CourseData = { course: CourseOutline; courseProgress: CourseProgress | null };
 
@@ -28,7 +30,11 @@ export default function LessonReader() {
 	const { slug, lessonId: local } = useLocalSearchParams<{ slug: string; lessonId: string }>();
 	if (!slug || !local) return <ErrorBox message="This lesson link is incomplete." />;
 	const id = fullId(slug, local);
-	return <Lesson key={id} slug={slug} id={id} />;
+	return (
+		<ErrorBoundary key={id} context={`lesson:${slug}:${local}`}>
+			<Lesson slug={slug} id={id} />
+		</ErrorBoundary>
+	);
 }
 
 function Lesson({ slug, id }: { slug: string; id: string }) {
@@ -96,6 +102,10 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 	// ---- time on lesson: counted while the app is in front, sent each minute
 	const secs = useRef(0);
 	const loaded = Boolean(lc);
+	useEffect(() => {
+		Sentry.addBreadcrumb({ category: 'navigation', message: `Open lesson ${id}`, data: { courseSlug: slug, lessonId: id }, level: 'info' });
+	}, [id, slug]);
+
 	useEffect(() => {
 		if (!loaded) return;
 		track({ kind: 'lesson_open', courseSlug: slug, lessonId: id });

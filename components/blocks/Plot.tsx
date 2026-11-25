@@ -22,7 +22,8 @@ export function Plot({ block, hue, width }: { block: PlotBlock; hue: HueSet; wid
 	const sx = (v: number) => PAD.l + ((lg(x, v) - lg(x, x.min)) / (lg(x, x.max) - lg(x, x.min) || 1)) * (W - PAD.l - PAD.r);
 	const sy = (v: number) => H - PAD.b - ((lg(y, v) - lg(y, y.min)) / (lg(y, y.max) - lg(y, y.min) || 1)) * (H - PAD.t - PAD.b);
 	const invX = (px: number) => x.min + ((px - PAD.l) / (W - PAD.l - PAD.r)) * (x.max - x.min);
-	const colorOf = (h: string | undefined, i: number) => (h ? t.hues[h as Hue].base : i === 0 ? hue.base : Object.values(t.hues)[i % 6].base);
+	const colorOf = (h: string | undefined, i: number) =>
+		(h && h !== 'accent' ? t.hues[h as Hue]?.base : undefined) ?? (i === 0 ? hue.base : Object.values(t.hues)[i % 6].base);
 
 	const ticks = (a: PlotBlock['x']) => a.ticks ?? Array.from({ length: 5 }, (_, i) => ({ v: a.min + ((a.max - a.min) * i) / 4, label: undefined as string | undefined }));
 	const fmt = (v: number) => (Math.abs(v) >= 1000 || Number.isInteger(v) ? String(Math.round(v)) : v.toFixed(Math.abs(v) < 1 ? 2 : 1));

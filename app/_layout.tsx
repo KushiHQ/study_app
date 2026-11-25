@@ -23,8 +23,17 @@ import '../lib/progress';
 import { startServices } from '../lib/services';
 import { FocusSession } from '../components/FocusControls';
 
-if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
-	Sentry.init({ dsn: process.env.EXPO_PUBLIC_SENTRY_DSN, tracesSampleRate: 0.1, enableNative: Platform.OS !== 'web' });
+const SENTRY_DSN =
+	process.env.EXPO_PUBLIC_SENTRY_DSN?.trim() ||
+	'https://545261c96306f566e50b5c22320d3651@o4511420856860672.ingest.us.sentry.io/4512491404591104';
+
+if (SENTRY_DSN) {
+	Sentry.init({
+		dsn: SENTRY_DSN,
+		tracesSampleRate: 0.1,
+		enableNative: Platform.OS !== 'web',
+		sendDefaultPii: false
+	});
 }
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -84,6 +93,10 @@ function Shell() {
 	}, [t.bg]);
 
 	useEffect(() => {
+		Sentry.setUser(user ? { id: user.id } : null);
+	}, [user]);
+
+	useEffect(() => {
 		if (status === 'signedOut' && !inAuth) router.replace('/(auth)/welcome');
 		else if (status === 'signedIn' && inAuth) router.replace(user && needsStudySetup(user) ? '/onboarding' : '/');
 	}, [status, inAuth, router, user]);
@@ -107,4 +120,4 @@ function Shell() {
 	);
 }
 
-export default process.env.EXPO_PUBLIC_SENTRY_DSN ? Sentry.wrap(RootLayout) : RootLayout;
+export default SENTRY_DSN ? Sentry.wrap(RootLayout) : RootLayout;

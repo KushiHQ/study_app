@@ -36,24 +36,26 @@ function keyed(v: string[]) {
 export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue: HueSet; width: number; autoplay?: boolean }) {
 	const t = useTheme();
 	const animSpeed = useStudyPrefs((s) => s.animSpeed);
-	const states = block.states;
+	const states = block.states ?? [];
 	const [cur, setCur] = useState(0);
 	const [playing, setPlaying] = useState(false);
 	const interacted = useRef(false);
-	const s = states[Math.min(cur, states.length - 1)];
+	const s = states[Math.min(cur, Math.max(0, states.length - 1))];
 
 	useEffect(() => {
-		if (!autoplay || interacted.current) return;
+		if (!autoplay || interacted.current || !states.length) return;
 		interacted.current = true;
 		setPlaying(true);
-	}, [autoplay]);
+	}, [autoplay, states.length]);
 
 	useEffect(() => {
-		if (!playing) return;
+		if (!playing || !s) return;
 		if (cur >= states.length - 1) return setPlaying(false);
 		const id = setTimeout(() => setCur((c) => c + 1), Math.round(dur(s) / animSpeed));
 		return () => clearTimeout(id);
 	}, [playing, cur, s, states.length, animSpeed]);
+
+	if (!s) return null;
 
 	const go = (n: number) => {
 		interacted.current = true;
@@ -195,12 +197,13 @@ function TreeView({ s, hue, t, width: W, heap }: { s: TraceState; hue: HueSet; t
 }
 
 function GraphView({ g, s, hue, t, width: W }: { g: NonNullable<TraceBlock['graph']>; s: TraceState; hue: HueSet; t: Palette; width: number }) {
+	if (!g.nodes?.length) return null;
 	const xs = g.nodes.map((n, i) => n.x ?? (i % 4) * 100);
 	const ys = g.nodes.map((n, i) => n.y ?? Math.floor(i / 4) * 100);
 	const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-	const sc = Math.min((W - 50) / Math.max(1, maxX - minX), 1.6);
-	const H = (maxY - minY) * sc + 50;
-	const P = (i: number) => ({ x: 25 + (xs[i] - minX) * sc, y: 25 + (ys[i] - minY) * sc });
+	const sc = Math.min(Math.max(0.1, W - 50) / Math.max(1, maxX - minX), 1.6);
+	const H = Math.max(50, (maxY - minY) * sc + 50);
+	const P = (i: number) => ({ x: 25 + ((xs[i] ?? minX) - minX) * sc, y: 25 + ((ys[i] ?? minY) - minY) * sc });
 	const onPath = (a: number, b: number) => (s.path ?? []).some(([x, y]) => (x === a && y === b) || (x === b && y === a));
 	return (
 		<Svg width={W} height={H}>

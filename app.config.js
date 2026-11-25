@@ -14,7 +14,7 @@ export default ({ config }) => ({
 	...config,
 	name: 'Kushi Study',
 	slug: 'kushi-study',
-	version: '1.0.1',
+	version: '1.0.2',
 	orientation: 'portrait',
 	icon: './assets/icon.png',
 	scheme: 'kushistudy',
@@ -93,8 +93,8 @@ export default ({ config }) => ({
 		[
 			'@sentry/react-native/expo',
 			{
-				organization: process.env.SENTRY_ORG,
-				project: process.env.SENTRY_PROJECT
+				organization: process.env.SENTRY_ORG || 'kushi-digital-innovation-ltd',
+				project: process.env.SENTRY_PROJECT || 'kushi-study'
 			}
 		]
 	],

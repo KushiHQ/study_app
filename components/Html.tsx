@@ -332,9 +332,12 @@ export function InlineMath({ tex, color, size }: { tex: string; color: string; s
 	const m = texToSvg(tex, false);
 	if (!m) return <Text style={{ fontFamily: fonts.mono, color }}>{tex}</Text>;
 	const ex = size * EX;
+	const w = Number.isFinite(m.width * ex) && m.width * ex > 0 ? Math.max(1, m.width * ex) : 1;
+	const h = Number.isFinite(m.height * ex) && m.height * ex > 0 ? Math.max(1, m.height * ex) : 1;
+	const ty = Number.isFinite(m.valign * ex) ? -m.valign * ex * 0.5 : 0;
 	return (
-		<View style={{ width: m.width * ex, height: m.height * ex, transform: [{ translateY: -m.valign * ex * 0.5 }] }}>
-			<SvgXml xml={m.xml} width={m.width * ex} height={m.height * ex} color={color} />
+		<View style={{ width: w, height: h, transform: [{ translateY: ty }] }}>
+			<SvgXml xml={m.xml} width={w} height={h} color={color} />
 		</View>
 	);
 }
@@ -343,9 +346,11 @@ export function DisplayMath({ tex, color, size = 17 }: { tex: string; color: str
 	const m = texToSvg(tex, true);
 	if (!m) return <Text style={{ fontFamily: fonts.mono, color, textAlign: 'center' }}>{tex}</Text>;
 	const ex = size * EX * 1.05;
+	const w = Number.isFinite(m.width * ex) && m.width * ex > 0 ? Math.max(1, m.width * ex) : 1;
+	const h = Number.isFinite(m.height * ex) && m.height * ex > 0 ? Math.max(1, m.height * ex) : 1;
 	return (
 		<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 4 }}>
-			<SvgXml xml={m.xml} width={m.width * ex} height={m.height * ex} color={color} />
+			<SvgXml xml={m.xml} width={w} height={h} color={color} />
 		</ScrollView>
 	);
 }

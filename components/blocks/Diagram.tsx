@@ -3,7 +3,7 @@
 // starts, the finished picture shows (same rules as the web's Diagram.svelte).
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react-native';
 import { alpha, fonts, mix, radius, useTheme, type HueSet } from '../../lib/theme';
@@ -65,11 +65,6 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 			}}
 		>
 			<LuminousBg from={mix(hue.base, t.name === 'night' ? 8 : 5, t.surface)} to={t.surface} borderRadius={radius.md} />
-			{parts.length ? (
-				<View style={{ position: 'absolute', top: 8, right: 8, zIndex: 4 }}>
-					<InfoTip text="Tap any highlighted part of this diagram to inspect it." label="Interactive diagram hint" />
-				</View>
-			) : null}
 			<View style={{ alignItems: 'center' }}>
 				<SvgTree
 					svg={svg}
@@ -87,8 +82,13 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 					}
 				/>
 			</View>
+			{parts.length ? (
+				<View style={{ position: 'absolute', top: 8, right: 8 }}>
+					<InfoTip text="Tap any highlighted part of this diagram to inspect it." label="Interactive diagram hint" />
+				</View>
+			) : null}
 			{note ? (
-				<Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={{ backgroundColor: hue.wash, borderRadius: 14, padding: 12, gap: 4 }}>
+				<Animated.View entering={FadeIn.duration(200)} style={{ backgroundColor: hue.wash, borderRadius: 14, padding: 12, gap: 4 }}>
 					<Text style={{ fontFamily: fonts.readHeavy, fontSize: 15, color: hue.ink }}>{note.title}</Text>
 					<Html html={note.html} hue={hue} style={{ fontSize: 15, lineHeight: 23 }} />
 				</Animated.View>

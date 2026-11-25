@@ -174,7 +174,7 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 			</View>
 
 			{/* Transparent top bar (Back + A−/A+ + Contents ≡ + Profile avatar) */}
-			<View style={{ paddingTop: insets.top, backgroundColor: 'transparent', zIndex: 2 }}>
+			<View style={{ paddingTop: insets.top, backgroundColor: 'transparent' }}>
 				<View style={{ height: 3, backgroundColor: alpha(t.fg, 0.08) }}>
 					<Animated.View style={[{ height: 3, backgroundColor: hue.base }, barStyle]} />
 				</View>

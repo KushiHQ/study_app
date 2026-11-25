@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import Animated, { FadeIn, FadeOut, useReducedMotion } from 'react-native-reanimated';
+import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Headphones, Pause, Play, RotateCcw, SkipForward } from 'lucide-react-native';
 import { clockOf, useFocus } from '../lib/focus';
@@ -62,19 +62,18 @@ export function ReaderCompanion() {
 
 	return (
 		<>
-			{/* Bottom-right floating stack (when popover is closed) */}
-			{!open ? (
-				<View
-					pointerEvents="box-none"
-					style={{
-						position: 'absolute',
-						right: 16,
-						bottom: bottomOffset,
-						alignItems: 'flex-end',
-						gap: 8,
-						zIndex: 20
-					}}
-				>
+			{/* Bottom-right floating stack (kept mounted with opacity to avoid Android ViewGroupDrawingOrder crashes) */}
+			<View
+				pointerEvents={open ? 'none' : 'box-none'}
+				style={{
+					position: 'absolute',
+					right: 16,
+					bottom: bottomOffset,
+					alignItems: 'flex-end',
+					gap: 8,
+					opacity: open ? 0 : 1
+				}}
+			>
 					{/* Focus Timer Pill */}
 					<Press
 						haptic
@@ -173,7 +172,6 @@ export function ReaderCompanion() {
 						</Press>
 					)}
 				</View>
-			) : null}
 
 			{/* Floating Popover Window */}
 			<Modal transparent visible={open} animationType="none" onRequestClose={() => setOpen(false)}>
@@ -181,7 +179,7 @@ export function ReaderCompanion() {
 					style={{ flex: 1, backgroundColor: 'rgba(5, 8, 18, 0.42)', justifyContent: 'flex-end', alignItems: 'flex-end', paddingRight: 16, paddingBottom: bottomOffset }}
 					onPress={() => setOpen(false)}
 				>
-					<Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={{ alignItems: 'flex-end', gap: 12 }}>
+					<Animated.View entering={FadeIn.duration(160)} style={{ alignItems: 'flex-end', gap: 12 }}>
 						<Pressable
 							onPress={(e) => e.stopPropagation()}
 							style={{

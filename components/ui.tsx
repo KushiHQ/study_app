@@ -5,6 +5,7 @@ import { forwardRef, useEffect, useId, useState, type ReactNode } from 'react';
 import {
 	ActivityIndicator,
 	Modal,
+	Platform,
 	Pressable,
 	ScrollView,
 	StyleSheet,
@@ -308,7 +309,6 @@ export function InfoTip({ text, label = 'More info', size = 15 }: { text: string
 				>
 					<Animated.View
 						entering={FadeIn.duration(150)}
-						exiting={FadeOut.duration(120)}
 						style={{
 							maxWidth: 320,
 							paddingHorizontal: 16,
@@ -478,6 +478,7 @@ const firstEntrance = sectionEntrance(0);
 const followingEntrance = sectionEntrance(45);
 
 export function Reveal({ children, style, follow }: { children: ReactNode; style?: StyleProp<ViewStyle>; follow?: boolean }) {
+	if (Platform.OS === 'android') return <View style={style}>{children}</View>;
 	return <Animated.View entering={follow ? followingEntrance : firstEntrance} style={style}>{children}</Animated.View>;
 }
 

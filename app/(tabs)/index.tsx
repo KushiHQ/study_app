@@ -15,6 +15,7 @@ import { alpha, fonts, radius, useTheme, useTint } from '../../lib/theme';
 import { Button, Card, ErrorBox, Meter, Press, Reveal, Screen, T, hair } from '../../components/ui';
 import { LoadingDots } from '../../components/LoadingDots';
 import { CourseCard } from '../../components/CourseCard';
+import { KushiEmoji } from '../../components/KushiEmoji';
 
 type Home = { today: Today; myCourses: CourseProgress[]; access: Access };
 
@@ -84,7 +85,7 @@ export default function TodayScreen() {
 							borderColor: alpha(t.amber, 0.36)
 						}}
 					>
-						<Flame size={15} color={t.amber} />
+						<KushiEmoji name="fire" size={16} />
 						<Text style={{ fontFamily: fonts.bodyBold, fontSize: 14, color: t.accent }}>{today.streakDays}d</Text>
 					</View>
 				) : null}

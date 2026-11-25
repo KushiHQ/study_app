@@ -20,7 +20,7 @@ import {
 	type ViewStyle
 } from 'react-native';
 import Animated, { Easing, FadeIn, FadeInDown, FadeOut, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Check, ChevronDown, Info } from 'lucide-react-native';
@@ -479,19 +479,52 @@ export function Reveal({ children, style, follow }: { children: ReactNode; style
 	return <Animated.View entering={follow ? followingEntrance : firstEntrance} style={style}>{children}</Animated.View>;
 }
 
+/** Subtle top indigo/teal atmospheric canvas wash matching study_web_app src/app.css --canvas. */
+export function CanvasGlow() {
+	const t = useTheme();
+	const night = t.name === 'night';
+	return (
+		<View pointerEvents="none" style={[StyleSheet.absoluteFill, { height: 340, overflow: 'hidden' }]}>
+			<Svg width="100%" height="100%" preserveAspectRatio="none">
+				<Defs>
+					<RadialGradient id="cg-left" cx="12%" cy="0%" r="65%">
+						<Stop offset="0%" stopColor={night ? '#6366F1' : '#7C5CE0'} stopOpacity={night ? '0.16' : '0.07'} />
+						<Stop offset="100%" stopColor={t.bg} stopOpacity="0" />
+					</RadialGradient>
+					<RadialGradient id="cg-right" cx="92%" cy="4%" r="55%">
+						<Stop offset="0%" stopColor={night ? '#2DD4BF' : '#2F80ED'} stopOpacity={night ? '0.09' : '0.07'} />
+						<Stop offset="100%" stopColor={t.bg} stopOpacity="0" />
+					</RadialGradient>
+				</Defs>
+				<Rect x="0" y="0" width="100%" height="100%" fill="url(#cg-left)" />
+				<Rect x="0" y="0" width="100%" height="100%" fill="url(#cg-right)" />
+			</Svg>
+		</View>
+	);
+}
+
 export function Screen({ children, scroll = true, padded = true, style, ...p }: ScrollViewProps & { scroll?: boolean; padded?: boolean; children: ReactNode }) {
 	const t = useTheme();
 	const insets = useSafeAreaInsets();
-	if (!scroll) return <View style={[{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }, style as ViewStyle]}>{children}</View>;
+	if (!scroll)
+		return (
+			<View style={[{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }, style as ViewStyle]}>
+				<CanvasGlow />
+				{children}
+			</View>
+		);
 	return (
-		<ScrollView
-			{...p}
-			style={[{ flex: 1, backgroundColor: t.bg }, style]}
-			contentContainerStyle={[{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 24, paddingHorizontal: padded ? 18 : 0 }, p.contentContainerStyle]}
-			keyboardShouldPersistTaps="handled"
-		>
-			{children}
-		</ScrollView>
+		<View style={{ flex: 1, backgroundColor: t.bg }}>
+			<CanvasGlow />
+			<ScrollView
+				{...p}
+				style={[{ flex: 1 }, style]}
+				contentContainerStyle={[{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 24, paddingHorizontal: padded ? 18 : 0 }, p.contentContainerStyle]}
+				keyboardShouldPersistTaps="handled"
+			>
+				{children}
+			</ScrollView>
+		</View>
 	);
 }
 

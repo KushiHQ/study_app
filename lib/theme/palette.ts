@@ -65,7 +65,7 @@ export function alpha(c: string, a: number): string {
 	return `rgba(${r},${g},${b},${a})`;
 }
 
-const AMBER = '#F59E0B';
+const AMBER = '#FBBF24';
 
 function hues(base: Record<Hue, [string, string]>, surface: string, soft: number, wash: number): Record<Hue, HueSet> {
 	const out = {} as Record<Hue, HueSet>;

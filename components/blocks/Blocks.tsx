@@ -12,6 +12,7 @@ import { alpha, fonts, mix, radius, useTheme, type HueSet } from '../../lib/them
 import { DisplayMath, Grid, Html, useHtmlCtx } from '../Html';
 import { CodeRuns } from '../CodeRuns';
 import { LuminousBg, Press, T, hair } from '../ui';
+import { KushiEmoji, type KushiEmojiName } from '../KushiEmoji';
 import { Diagram } from './Diagram';
 import { Figure } from './Figure';
 import { Trace } from './Trace';
@@ -55,13 +56,13 @@ function BlockView({ b, hue, width, autoplay, onLongPress, onStepReveal }: { b: 
 			case 'heading':
 				return <T style={{ fontFamily: fonts.serif, fontSize: 22, lineHeight: 28, color: t.fg, marginTop: 8 }}>{b.text}</T>;
 			case 'analogy':
-				return <Callout emoji="💡" eyebrow="Think of it like…" title={b.title} html={b.html} hue={hue} tint={t.hues.honey.base} eyebrowColor={t.hues.honey.ink} />;
+				return <Callout emoji="bulb" eyebrow="Think of it like…" title={b.title} html={b.html} hue={hue} tint={t.hues.honey.base} eyebrowColor={t.hues.honey.ink} />;
 			case 'story':
-				return <Callout emoji="📖" eyebrow="A true story" title={b.title} html={b.html} hue={hue} tint={t.hues.sky.base} eyebrowColor={t.hues.sky.ink} />;
+				return <Callout emoji="book" eyebrow="A true story" title={b.title} html={b.html} hue={hue} tint={t.hues.sky.base} eyebrowColor={t.hues.sky.ink} />;
 			case 'mnemonic':
-				return <Callout emoji="🧠" eyebrow="Memory trick" html={b.html} hue={hue} tint={t.hues.lilac.base} eyebrowColor={t.hues.lilac.ink} />;
+				return <Callout emoji="brain" eyebrow="Memory trick" html={b.html} hue={hue} tint={t.hues.lilac.base} eyebrowColor={t.hues.lilac.ink} />;
 			case 'pitfall':
-				return <Callout emoji="⚠️" eyebrow="Common trap" html={b.html} hue={hue} tint={t.danger} eyebrowColor={t.danger} />;
+				return <Callout emoji="warning" eyebrow="Common trap" html={b.html} hue={hue} tint={t.danger} eyebrowColor={t.danger} />;
 			case 'bigidea':
 				return (
 					<View style={{ borderLeftWidth: 4, borderLeftColor: hue.base, paddingLeft: 16, paddingVertical: 4, gap: 6 }}>
@@ -142,14 +143,14 @@ export function Eye({ children, hue, color }: { children: ReactNode; hue?: HueSe
 	return <Text style={{ fontFamily: fonts.readHeavy, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: color ?? hue?.ink ?? t.accent }}>{typeof children === 'string' ? children.replace(/<[^>]+>/g, '').replace(/\$/g, '') : children}</Text>;
 }
 
-function Callout({ emoji, eyebrow, title, html, hue, tint, eyebrowColor }: { emoji: string; eyebrow: string; title?: string; html: string; hue: HueSet; tint: string; eyebrowColor?: string }) {
+function Callout({ emoji, eyebrow, title, html, hue, tint, eyebrowColor }: { emoji: KushiEmojiName; eyebrow: string; title?: string; html: string; hue: HueSet; tint: string; eyebrowColor?: string }) {
 	const t = useTheme();
 	const from = mix(tint, t.name === 'night' ? 18 : 13, t.surface);
 	return (
 		<View
 			style={{
 				flexDirection: 'row',
-				gap: 12,
+				gap: 14,
 				backgroundColor: t.surface,
 				borderRadius: radius.md,
 				padding: 16,
@@ -159,7 +160,9 @@ function Callout({ emoji, eyebrow, title, html, hue, tint, eyebrowColor }: { emo
 			}}
 		>
 			<LuminousBg from={from} to={t.surface} borderRadius={radius.md} />
-			<Text style={{ fontSize: 22, lineHeight: 28 }}>{emoji}</Text>
+			<View style={{ paddingTop: 2 }}>
+				<KushiEmoji name={emoji} size={26} />
+			</View>
 			<View style={{ flex: 1, gap: 6 }}>
 				<Eye hue={hue} color={eyebrowColor}>
 					{eyebrow}
@@ -186,7 +189,7 @@ function Steps({ title, intro, steps, hue, onStepReveal }: { title: string; intr
 	return (
 		<Box hue={hue}>
 			<View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-				<Text style={{ fontSize: 20 }}>✍️</Text>
+				<KushiEmoji name="write" size={24} />
 				<View style={{ flex: 1 }}>
 					<Eye hue={hue}>Worked example</Eye>
 					<Html html={title} hue={hue} style={{ fontFamily: fonts.serif, fontSize: 18, lineHeight: 24 }} />
@@ -314,9 +317,11 @@ function Think({ prompt, answer, hue }: { prompt: string; answer: string; hue: H
 	const t = useTheme();
 	const [open, setOpen] = useState(false);
 	return (
-		<Box hue={hue} bg={hue.wash}>
-			<View style={{ flexDirection: 'row', gap: 10 }}>
-				<Text style={{ fontSize: 20 }}>🤔</Text>
+		<Box hue={hue}>
+			<View style={{ flexDirection: 'row', gap: 12 }}>
+				<View style={{ paddingTop: 2 }}>
+					<KushiEmoji name="think" size={25} />
+				</View>
 				<View style={{ flex: 1, gap: 6 }}>
 					<Eye hue={hue}>Think about it</Eye>
 					<Html html={prompt} hue={hue} style={{ fontSize: 16, lineHeight: 25 }} />

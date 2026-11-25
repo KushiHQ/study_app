@@ -12,6 +12,7 @@ import Svg, { Circle, Line, Text as SText } from 'react-native-svg';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react-native';
 import type { TraceBlock, TraceState } from '../../lib/api/types';
 import { fonts, radius, useTheme, type HueSet, type Palette } from '../../lib/theme';
+import { useStudyPrefs } from '../../lib/prefs';
 import { parse, textOf } from '../../lib/html';
 import { codeLines, highlightCode } from '../../lib/highlight';
 import { CodeRuns } from '../CodeRuns';
@@ -34,6 +35,7 @@ function keyed(v: string[]) {
 
 export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue: HueSet; width: number; autoplay?: boolean }) {
 	const t = useTheme();
+	const animSpeed = useStudyPrefs((s) => s.animSpeed);
 	const states = block.states;
 	const [cur, setCur] = useState(0);
 	const [playing, setPlaying] = useState(false);
@@ -49,9 +51,9 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 	useEffect(() => {
 		if (!playing) return;
 		if (cur >= states.length - 1) return setPlaying(false);
-		const id = setTimeout(() => setCur((c) => c + 1), dur(s));
+		const id = setTimeout(() => setCur((c) => c + 1), Math.round(dur(s) / animSpeed));
 		return () => clearTimeout(id);
-	}, [playing, cur, s, states.length]);
+	}, [playing, cur, s, states.length, animSpeed]);
 
 	const go = (n: number) => {
 		interacted.current = true;

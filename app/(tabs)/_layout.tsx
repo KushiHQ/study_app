@@ -5,8 +5,8 @@ import { useLinkBuilder } from '@react-navigation/native';
 import { Tabs } from 'expo-router';
 import { useReducedMotion } from 'react-native-reanimated';
 import { BookOpen, CalendarDays, UserRound } from 'lucide-react-native';
-import { alpha, fonts, radius, useTheme } from '../../lib/theme';
-import { hair } from '../../components/ui';
+import { alpha, fonts, mix, radius, useTheme } from '../../lib/theme';
+import { LuminousBg, hair } from '../../components/ui';
 
 const ITEMS = {
 	index: { label: 'Today', Icon: CalendarDays },
@@ -57,10 +57,12 @@ function StudyDock({ state, navigation, insets }: BottomTabBarProps) {
 								flex: 1, minWidth: 0, minHeight: 48, paddingHorizontal: 5, paddingVertical: 7,
 								flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6,
 								borderRadius: radius.sm, borderWidth: hair,
-								borderColor: selected ? alpha(t.amber, 0.24) : 'transparent',
-								backgroundColor: selected ? t.accentSoft : 'transparent'
+								borderColor: selected ? alpha(t.amber, 0.36) : 'transparent',
+								backgroundColor: selected ? t.accentSoft : 'transparent',
+								overflow: 'hidden'
 							}}
 						>
+							{selected ? <LuminousBg from={mix(t.amber, 22, t.surface)} to={t.surface} borderRadius={radius.sm} /> : null}
 							<Icon size={17} color={color} strokeWidth={selected ? 2.25 : 1.8} />
 							<Text style={{ flexShrink: 1, fontFamily: selected ? fonts.bodyBold : fonts.bodySemi, fontSize: 13, lineHeight: 17, color }}>{label}</Text>
 						</PlatformPressable>

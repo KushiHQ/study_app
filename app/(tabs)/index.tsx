@@ -72,7 +72,7 @@ export default function TodayScreen() {
 			{fetching && !data ? <LoadingDots label="Loading your study plan" /> : null}
 			{data ? (
 				<Reveal follow>
-					<Card style={{ padding: 19, marginTop: firstCourse ? 10 : 0, backgroundColor: leadBackground, borderColor: alpha(leadColor, 0.32), gap: 12 }}>
+					<Card tint={leadColor} tintStrength={t.name === 'night' ? 16 : 11} style={{ padding: 19, marginTop: firstCourse ? 10 : 0, borderColor: alpha(leadColor, 0.34), gap: 12, overflow: firstCourse ? 'visible' : 'hidden' }}>
 						<View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { borderRadius: radius.md, overflow: 'hidden' }]}>
 							<CourseHalo color={leadColor} />
 						</View>
@@ -93,14 +93,14 @@ export default function TodayScreen() {
 
 			{today && (today.streakDays > 0 || today.daysToExam !== null) ? (
 				<View style={{ flexDirection: 'row', gap: 10 }}>
-					<Card style={{ flex: 1, gap: 5, padding: 14, backgroundColor: today.studiedToday ? t.accentSoft : t.surface }}>
+					<Card tint={today.studiedToday ? t.amber : undefined} tintStrength={14} style={{ flex: 1, gap: 5, padding: 14 }}>
 						<Flame size={21} color={t.accent} />
 						<T v="label">Study streak</T>
 						<T v="h2">{today.streakDays} {today.streakDays === 1 ? 'day' : 'days'}</T>
 						{today.studiedToday ? <T v="small" color={t.success}>Studied today</T> : null}
 					</Card>
 					{today.daysToExam !== null ? (
-						<Card style={{ flex: 1, gap: 5, padding: 14, backgroundColor: t.signalSoft }}>
+						<Card tint={t.signal} tintStrength={14} style={{ flex: 1, gap: 5, padding: 14 }}>
 							<CalendarDays size={21} color={t.signal} />
 							<T v="label">Next exam</T>
 							<T v="h2">{today.daysToExam === 0 ? 'Today' : `${today.daysToExam} ${today.daysToExam === 1 ? 'day' : 'days'} left`}</T>

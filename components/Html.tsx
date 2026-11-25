@@ -6,7 +6,8 @@ import { SvgXml } from 'react-native-svg';
 import { parse, textOf, type HNode } from '../lib/html';
 import { highlightCode } from '../lib/highlight';
 import { splitMath, texToSvg } from '../lib/mathjax';
-import { fonts, useTheme, type HueSet, type Palette } from '../lib/theme';
+import { alpha, fonts, useTheme, type HueSet, type Palette } from '../lib/theme';
+import { useStudyPrefs } from '../lib/prefs';
 import { SvgTree } from './SvgTree';
 import { CodeRuns } from './CodeRuns';
 
@@ -25,13 +26,17 @@ export interface HtmlProps {
 
 export const Html = memo(function Html({ html, style, hue, read = true, numberOfLines }: HtmlProps) {
 	const t = useTheme();
+	const textScale = useStudyPrefs((s) => s.textScale);
 	const nodes = useMemo(() => parse(html ?? ''), [html]);
+	const scale = read ? textScale : 1;
+	const rawSize = style?.fontSize ?? (read ? 17 : 15);
+	const rawLine = style?.lineHeight ?? (read ? 27 : 22);
 	const base: TextStyle = {
 		fontFamily: read ? fonts.read : fonts.body,
-		fontSize: read ? 17 : 15,
-		lineHeight: read ? 27 : 22,
 		color: t.fg,
-		...style
+		...style,
+		fontSize: Math.round(rawSize * scale * 10) / 10,
+		lineHeight: Math.round(rawLine * scale * 10) / 10
 	};
 	const ctx: Ctx = { t, hue, base, read, numberOfLines };
 	return <View style={{ gap: 10 }}>{blocks(nodes, ctx, 'r')}</View>;
@@ -173,6 +178,14 @@ function inlineStyle(n: HNode, c: Ctx): TextStyle {
 			const cls = n.attrs.class ?? '';
 			const hue = /(?:^|\s)(?:hl|hi|ink|t)-(sage|sky|lilac|peach|rose|honey)\b/.exec(cls)?.[1] as keyof Palette['hues'] | undefined;
 			if (hue) return { color: t.hues[hue].ink, fontFamily: c.read ? fonts.readBold : fonts.bodySemi };
+			if (/(?:^|\s)hl\b/.test(cls)) {
+				const accent = c.hue?.base ?? t.amber;
+				return {
+					backgroundColor: alpha(accent, t.name === 'night' ? 0.18 : 0.22),
+					color: t.fg,
+					fontFamily: c.read ? fonts.readBold : fonts.bodySemi
+				};
+			}
 			if (/muted/.test(cls)) return { color: t.muted };
 			if (/accent|key/.test(cls)) return { color: c.hue?.ink ?? t.accent, fontFamily: c.read ? fonts.readBold : fonts.bodySemi };
 			return {};

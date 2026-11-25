@@ -8,10 +8,10 @@ import { Copy, Check, Quote, ChevronRight, RotateCcw, Puzzle } from 'lucide-reac
 import type { Block } from '../../lib/api/types';
 import { parse } from '../../lib/html';
 import { highlightCode } from '../../lib/highlight';
-import { fonts, radius, useTheme, type HueSet } from '../../lib/theme';
+import { alpha, fonts, mix, radius, useTheme, type HueSet } from '../../lib/theme';
 import { DisplayMath, Grid, Html, useHtmlCtx } from '../Html';
 import { CodeRuns } from '../CodeRuns';
-import { Press, T, hair } from '../ui';
+import { LuminousBg, Press, T, hair } from '../ui';
 import { Diagram } from './Diagram';
 import { Figure } from './Figure';
 import { Trace } from './Trace';
@@ -55,13 +55,13 @@ function BlockView({ b, hue, width, autoplay, onLongPress, onStepReveal }: { b: 
 			case 'heading':
 				return <T style={{ fontFamily: fonts.serif, fontSize: 22, lineHeight: 28, color: t.fg, marginTop: 8 }}>{b.text}</T>;
 			case 'analogy':
-				return <Callout emoji="💡" eyebrow="Think of it like…" title={b.title} html={b.html} hue={hue} bg={hue.wash} />;
+				return <Callout emoji="💡" eyebrow="Think of it like…" title={b.title} html={b.html} hue={hue} tint={t.hues.honey.base} eyebrowColor={t.hues.honey.ink} />;
 			case 'story':
-				return <Callout emoji="📖" eyebrow="A true story" title={b.title} html={b.html} hue={hue} bg={t.surface} />;
+				return <Callout emoji="📖" eyebrow="A true story" title={b.title} html={b.html} hue={hue} tint={t.hues.sky.base} eyebrowColor={t.hues.sky.ink} />;
 			case 'mnemonic':
-				return <Callout emoji="🧠" eyebrow="Memory trick" html={b.html} hue={hue} bg={t.hues.lilac.wash} />;
+				return <Callout emoji="🧠" eyebrow="Memory trick" html={b.html} hue={hue} tint={t.hues.lilac.base} eyebrowColor={t.hues.lilac.ink} />;
 			case 'pitfall':
-				return <Callout emoji="⚠️" eyebrow="Careful, this costs marks" html={b.html} hue={hue} bg={t.dangerSoft} eyebrowColor={t.danger} />;
+				return <Callout emoji="⚠️" eyebrow="Common trap" html={b.html} hue={hue} tint={t.danger} eyebrowColor={t.danger} />;
 			case 'bigidea':
 				return (
 					<View style={{ borderLeftWidth: 4, borderLeftColor: hue.base, paddingLeft: 16, paddingVertical: 4, gap: 6 }}>
@@ -109,7 +109,32 @@ function BlockView({ b, hue, width, autoplay, onLongPress, onStepReveal }: { b: 
 
 export function Box({ children, hue, bg, style }: { children: ReactNode; hue?: HueSet; bg?: string; style?: object }) {
 	const t = useTheme();
-	return <View style={[{ backgroundColor: bg ?? t.surface, borderRadius: radius.md, padding: 16, gap: 10, borderWidth: hair, borderColor: t.line }, style]}>{children}</View>;
+	const tint = hue?.base;
+	return (
+		<View
+			style={[
+				{
+					backgroundColor: bg ?? t.surface,
+					borderRadius: radius.md,
+					padding: 16,
+					gap: 10,
+					borderWidth: hair,
+					borderColor: tint ? alpha(tint, 0.24) : t.line,
+					overflow: 'hidden'
+				},
+				style
+			]}
+		>
+			{!bg ? (
+				<LuminousBg
+					from={tint ? mix(tint, t.name === 'night' ? 8 : 5, t.surface) : t.name === 'night' ? mix('#b4caff', 4.5, t.surface) : mix('#6374af', 2.5, t.surface)}
+					to={t.surface}
+					borderRadius={radius.md}
+				/>
+			) : null}
+			{children}
+		</View>
+	);
 }
 
 export function Eye({ children, hue, color }: { children: ReactNode; hue?: HueSet; color?: string }) {
@@ -117,10 +142,23 @@ export function Eye({ children, hue, color }: { children: ReactNode; hue?: HueSe
 	return <Text style={{ fontFamily: fonts.readHeavy, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: color ?? hue?.ink ?? t.accent }}>{typeof children === 'string' ? children.replace(/<[^>]+>/g, '').replace(/\$/g, '') : children}</Text>;
 }
 
-function Callout({ emoji, eyebrow, title, html, hue, bg, eyebrowColor }: { emoji: string; eyebrow: string; title?: string; html: string; hue: HueSet; bg: string; eyebrowColor?: string }) {
+function Callout({ emoji, eyebrow, title, html, hue, tint, eyebrowColor }: { emoji: string; eyebrow: string; title?: string; html: string; hue: HueSet; tint: string; eyebrowColor?: string }) {
 	const t = useTheme();
+	const from = mix(tint, t.name === 'night' ? 18 : 13, t.surface);
 	return (
-		<View style={{ flexDirection: 'row', gap: 12, backgroundColor: bg, borderRadius: radius.md, padding: 16 }}>
+		<View
+			style={{
+				flexDirection: 'row',
+				gap: 12,
+				backgroundColor: t.surface,
+				borderRadius: radius.md,
+				padding: 16,
+				borderWidth: hair,
+				borderColor: alpha(tint, t.name === 'night' ? 0.34 : 0.28),
+				overflow: 'hidden'
+			}}
+		>
+			<LuminousBg from={from} to={t.surface} borderRadius={radius.md} />
 			<Text style={{ fontSize: 22, lineHeight: 28 }}>{emoji}</Text>
 			<View style={{ flex: 1, gap: 6 }}>
 				<Eye hue={hue} color={eyebrowColor}>

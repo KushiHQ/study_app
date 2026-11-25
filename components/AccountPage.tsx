@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
-import { TextInput, View, type TextInputProps } from 'react-native';
+import { View, type TextInputProps } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
-import { fonts, radius, useTheme } from '../lib/theme';
-import { Press, Screen, T, hair } from './ui';
+import { useTheme } from '../lib/theme';
+import { FieldInput, Press, Screen, T } from './ui';
 
 export function AccountPage({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
 	const router = useRouter();
@@ -25,15 +25,5 @@ export function AccountPage({ title, description, children }: { title: string; d
 }
 
 export function AccountField({ label, multiline, ...props }: TextInputProps & { label: string }) {
-	const t = useTheme();
-	return (
-		<View style={{ gap: 5 }}>
-			<T v="bodyStrong">{label}</T>
-			<TextInput {...props} multiline={multiline} accessibilityLabel={label} placeholderTextColor={t.muted} style={{
-				minHeight: multiline ? 100 : 48, textAlignVertical: multiline ? 'top' : 'center',
-				borderRadius: radius.sm, borderWidth: hair, borderColor: t.line2, backgroundColor: t.bg,
-				color: t.fg, fontFamily: fonts.body, fontSize: 16, paddingHorizontal: 12, paddingVertical: 10
-			}} />
-		</View>
-	);
+	return <FieldInput label={label} multiline={multiline} accessibilityLabel={label} {...props} />;
 }

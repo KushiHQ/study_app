@@ -6,15 +6,17 @@ import { View, Text } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react-native';
-import { fonts, radius, useTheme, type HueSet } from '../../lib/theme';
+import { alpha, fonts, mix, radius, useTheme, type HueSet } from '../../lib/theme';
+import { useStudyPrefs } from '../../lib/prefs';
 import { Html } from '../Html';
-import { Press, T, hair } from '../ui';
+import { InfoTip, LuminousBg, Press, T, hair } from '../ui';
 import { SvgTree } from '../SvgTree';
 
 type Note = { title: string; html: string };
 
 export function Diagram({ svg, caption, parts = [], steps = [], hue, width, autoplay }: { svg: string; caption: string; parts?: (Note & { id: string })[]; steps?: Note[]; hue: HueSet; width: number; autoplay?: boolean }) {
 	const t = useTheme();
+	const animSpeed = useStudyPrefs((s) => s.animSpeed);
 	const byId = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts]);
 	const [active, setActive] = useState<string | null>(null);
 	const [cur, setCur] = useState(-1);
@@ -36,9 +38,9 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 			setPlaying(false);
 			return;
 		}
-		timer.current = setTimeout(() => setCur((c) => Math.min(last, c + 1)), 2600);
+		timer.current = setTimeout(() => setCur((c) => Math.min(last, c + 1)), Math.round(2600 / animSpeed));
 		return () => clearTimeout(timer.current);
-	}, [playing, cur, last]);
+	}, [playing, cur, last, animSpeed]);
 
 	const go = (n: number) => {
 		interacted.current = true;
@@ -50,7 +52,24 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 	const note = active ? byId.get(active) : null;
 
 	return (
-		<View style={{ backgroundColor: t.surface, borderRadius: radius.md, borderWidth: hair, borderColor: t.line, padding: 12, gap: 10 }}>
+		<View
+			style={{
+				position: 'relative',
+				backgroundColor: t.surface,
+				borderRadius: radius.md,
+				borderWidth: hair,
+				borderColor: alpha(hue.base, 0.24),
+				padding: 12,
+				gap: 10,
+				overflow: 'hidden'
+			}}
+		>
+			<LuminousBg from={mix(hue.base, t.name === 'night' ? 8 : 5, t.surface)} to={t.surface} borderRadius={radius.md} />
+			{parts.length ? (
+				<View style={{ position: 'absolute', top: 8, right: 8, zIndex: 4 }}>
+					<InfoTip text="Tap any highlighted part of this diagram to inspect it." label="Interactive diagram hint" />
+				</View>
+			) : null}
 			<View style={{ alignItems: 'center' }}>
 				<SvgTree
 					svg={svg}
@@ -73,8 +92,6 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 					<Text style={{ fontFamily: fonts.readHeavy, fontSize: 15, color: hue.ink }}>{note.title}</Text>
 					<Html html={note.html} hue={hue} style={{ fontSize: 15, lineHeight: 23 }} />
 				</Animated.View>
-			) : parts.length ? (
-				<T v="small">Tap a part of the picture to learn about it.</T>
 			) : null}
 			{steps.length ? (
 				<View style={{ gap: 8 }}>

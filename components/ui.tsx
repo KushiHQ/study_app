@@ -65,8 +65,8 @@ export const Press = forwardRef<View, PressableProps & { style?: StyleProp<ViewS
 });
 
 /**
- * Kushi's signature luminous diagonal wash (matching web's linear-gradient(150deg, tint, paper 72%)).
- * Uses react-native-svg so no extra native binary module is required.
+ * Kushi's signature silky-smooth diagonal wash (matching study.kushi.ng).
+ * Uses a 4-stop alpha ease-out over the solid card surface so there is zero abrupt cutoff.
  */
 export function LuminousBg({ from, to, borderRadius = radius.md }: { from: string; to: string; borderRadius?: number }) {
 	const gid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -74,9 +74,11 @@ export function LuminousBg({ from, to, borderRadius = radius.md }: { from: strin
 		<View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius, overflow: 'hidden' }]}>
 			<Svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
 				<Defs>
-					<LinearGradient id={`lum-${gid}`} x1="0%" y1="0%" x2="88%" y2="100%">
+					<LinearGradient id={`lum-${gid}`} x1="0%" y1="0%" x2="85%" y2="95%">
 						<Stop offset="0%" stopColor={from} stopOpacity="1" />
-						<Stop offset="72%" stopColor={to} stopOpacity="1" />
+						<Stop offset="36%" stopColor={from} stopOpacity="0.45" />
+						<Stop offset="70%" stopColor={to} stopOpacity="0.88" />
+						<Stop offset="100%" stopColor={to} stopOpacity="1" />
 					</LinearGradient>
 				</Defs>
 				<Rect x="0" y="0" width="100" height="100" fill={`url(#lum-${gid})`} />

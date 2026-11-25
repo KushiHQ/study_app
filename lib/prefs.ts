@@ -7,6 +7,7 @@ export type AnimSpeed = 0.75 | 1 | 1.5;
 const K_SPEED = 'ks.animSpeed';
 const K_SCALE = 'ks.textScale';
 const K_SOUNDS = 'ks.sounds';
+const K_OLLIE = 'ks.showOllie';
 
 function readSpeed(): AnimSpeed {
 	const v = Number(prefs.get(K_SPEED));
@@ -20,18 +21,24 @@ function readScale(): number {
 function readSounds(): boolean {
 	return prefs.get(K_SOUNDS) !== '0';
 }
+function readShowOllie(): boolean {
+	return prefs.get(K_OLLIE) !== '0';
+}
 
 export const useStudyPrefs = create<{
 	animSpeed: AnimSpeed;
 	textScale: number;
 	sounds: boolean;
+	showOllie: boolean;
 	setAnimSpeed(v: AnimSpeed): void;
 	setTextScale(v: number): void;
 	setSounds(v: boolean): void;
+	setShowOllie(v: boolean): void;
 }>((set) => ({
 	animSpeed: readSpeed(),
 	textScale: readScale(),
 	sounds: readSounds(),
+	showOllie: readShowOllie(),
 	setAnimSpeed(v) {
 		prefs.set(K_SPEED, String(v));
 		set({ animSpeed: v });
@@ -44,5 +51,9 @@ export const useStudyPrefs = create<{
 	setSounds(v) {
 		prefs.set(K_SOUNDS, v ? '1' : '0');
 		set({ sounds: v });
+	},
+	setShowOllie(v) {
+		prefs.set(K_OLLIE, v ? '1' : '0');
+		set({ showOllie: v });
 	}
 }));

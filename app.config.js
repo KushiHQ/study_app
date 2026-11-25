@@ -14,7 +14,7 @@ export default ({ config }) => ({
 	...config,
 	name: 'Kushi Study',
 	slug: 'kushi-study',
-	version: '1.0.2',
+	version: '1.1.0',
 	orientation: 'portrait',
 	icon: './assets/icon.png',
 	scheme: 'kushistudy',
@@ -35,7 +35,7 @@ export default ({ config }) => ({
 		package: 'ng.kushi.study',
 		adaptiveIcon: {
 			foregroundImage: './assets/adaptive-icon.png',
-			backgroundColor: '#04050C'
+			backgroundColor: '#080D1C'
 		},
 		edgeToEdgeEnabled: true,
 		predictiveBackGestureEnabled: false,

@@ -9,8 +9,9 @@ import { CATALOGUE, SEARCH } from '../../lib/api/queries';
 import type { CourseCard as Card, Department, Level } from '../../lib/api/types';
 import { errorText } from '../../lib/api/client';
 import { useSession } from '../../lib/session';
-import { fonts, mix, radius, useTheme } from '../../lib/theme';
-import { Button, ErrorBox, Press, Reveal, T, hair } from '../../components/ui';
+import { alpha, fonts, mix, radius, useTheme } from '../../lib/theme';
+import { Button, CanvasGlow, ErrorBox, Eyebrow, Press, Reveal, T, hair } from '../../components/ui';
+import { TopBar } from '../../components/TopBar';
 import { CourseCard } from '../../components/CourseCard';
 import { LoadingDots } from '../../components/LoadingDots';
 
@@ -45,9 +46,11 @@ export default function Courses() {
 
 	const header = (
 		<View style={{ gap: 14, marginBottom: 14 }}>
-			<Reveal style={{ marginTop: 6 }}>
-				<Text accessibilityRole="header" style={{ fontFamily: fonts.bodyBold, fontSize: 30, lineHeight: 35, letterSpacing: -0.6, color: t.fg }}>
-					Courses
+			<TopBar />
+			<Reveal>
+				<Eyebrow>Courses</Eyebrow>
+				<Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: 26, lineHeight: 32, letterSpacing: -0.7, color: t.fg }}>
+					Find any course.
 				</Text>
 			</Reveal>
 
@@ -114,28 +117,31 @@ export default function Courses() {
 	);
 
 	return (
-		<FlatList
-			style={{ flex: 1, backgroundColor: t.bg }}
-			contentContainerStyle={{ paddingTop: insets.top + 10, paddingHorizontal: 20, paddingBottom: 24, gap: 10, width: '100%', maxWidth: 680, alignSelf: 'center' }}
-			data={list}
-			keyExtractor={(c) => c.slug}
-			ListHeaderComponent={header}
-			keyboardShouldPersistTaps="handled"
-			keyboardDismissMode="on-drag"
-			refreshControl={<RefreshControl refreshing={false} tintColor={t.amber} onRefresh={() => refetch({ requestPolicy: 'network-only' })} />}
-			renderItem={({ item }) => <CourseCard card={item} />}
-			ListEmptyComponent={
-				fetching || searching ? (
-					<LoadingDots label="Loading courses" />
-				) : (
-					<View style={{ gap: 6, paddingVertical: 20 }}>
-						<T v="h3">No courses found</T>
-						<T>Try a different title or course code.</T>
-						<Button small kind="ghost" title="Request a course" onPress={() => router.push({ pathname: '/request', params: { title: q.trim() } })} style={{ alignSelf: 'flex-start', marginTop: 6 }} />
-					</View>
-				)
-			}
-		/>
+		<View style={{ flex: 1, backgroundColor: t.bg }}>
+			<CanvasGlow />
+			<FlatList
+				style={{ flex: 1 }}
+				contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 20, paddingBottom: 24, gap: 10, width: '100%', maxWidth: 680, alignSelf: 'center' }}
+				data={list}
+				keyExtractor={(c) => c.slug}
+				ListHeaderComponent={header}
+				keyboardShouldPersistTaps="handled"
+				keyboardDismissMode="on-drag"
+				refreshControl={<RefreshControl refreshing={false} tintColor={t.amber} onRefresh={() => refetch({ requestPolicy: 'network-only' })} />}
+				renderItem={({ item }) => <CourseCard card={item} />}
+				ListEmptyComponent={
+					fetching || searching ? (
+						<LoadingDots label="Loading courses" />
+					) : (
+						<View style={{ gap: 6, paddingVertical: 20 }}>
+							<T v="h3">No courses found</T>
+							<T>Try a different title or course code.</T>
+							<Button small kind="ghost" title="Request a course" onPress={() => router.push({ pathname: '/request', params: { title: q.trim() } })} style={{ alignSelf: 'flex-start', marginTop: 6 }} />
+						</View>
+					)
+				}
+			/>
+		</View>
 	);
 }
 
@@ -148,16 +154,16 @@ function FilterPill({ label, active, onPress }: { label: string; active: boolean
 			accessibilityRole="button"
 			accessibilityState={{ selected: active }}
 			style={{
-				paddingHorizontal: 16,
+				paddingHorizontal: 15,
 				height: 34,
 				borderRadius: radius.pill,
 				justifyContent: 'center',
-				backgroundColor: active ? t.fg : t.surface,
-				borderWidth: active ? 0 : hair,
-				borderColor: t.line2
+				backgroundColor: active ? alpha(t.amber, 0.14) : t.name === 'night' ? 'rgba(19, 27, 50, 0.78)' : t.surface,
+				borderWidth: hair,
+				borderColor: active ? alpha(t.amber, 0.45) : t.name === 'night' ? 'rgba(210, 224, 255, 0.11)' : t.line2
 			}}
 		>
-			<Text style={{ fontFamily: fonts.bodySemi, fontSize: 13, color: active ? t.bg : t.fg2 }}>{label}</Text>
+			<Text style={{ fontFamily: fonts.bodySemi, fontSize: 13, color: active ? t.fg : t.fg2 }}>{label}</Text>
 		</Press>
 	);
 }

@@ -16,6 +16,7 @@ import { plain } from '../../../lib/html';
 import { addDays, lagosToday } from '../../../lib/study/srs';
 import { shortDate } from '../../../lib/study/ids';
 import { Button, Card, ErrorBox, Loading, Press, Reveal, T, hair } from '../../../components/ui';
+import { TopBar } from '../../../components/TopBar';
 import { ErrorBoundary } from '../../../components/ErrorBoundary';
 import { Ring } from '../../../components/Ring';
 
@@ -78,15 +79,11 @@ function CourseScreenInner({ slug }: { slug: string }) {
 				contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 40, paddingHorizontal: 20, width: '100%', maxWidth: 680, alignSelf: 'center', gap: 18 }}
 				refreshControl={<RefreshControl refreshing={false} tintColor={hue.base} onRefresh={() => refetch({ requestPolicy: 'network-only' })} />}
 			>
-				{/* Back Nav */}
-				<Press
-					onPress={() => (router.canGoBack() ? router.back() : router.replace('/courses'))}
-					accessibilityRole="button"
-					style={{ minHeight: 36, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: -4 }}
-				>
-					<ChevronLeft size={20} color={t.muted} />
-					<Text style={{ fontFamily: fonts.bodyMedium, fontSize: 15, color: t.muted }}>Courses</Text>
-				</Press>
+				{/* Transparent Back + Profile Top Bar */}
+				<TopBar
+					backLabel="Courses"
+					onBack={() => (router.canGoBack() ? router.back() : router.replace('/courses'))}
+				/>
 
 				{/* Course Code Pill + Title */}
 				<Reveal style={{ gap: 10 }}>

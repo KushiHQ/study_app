@@ -12,7 +12,8 @@ import { useSession } from '../../lib/session';
 import { daysLeft } from '../../lib/study/trial';
 import { useProgress } from '../../lib/progress';
 import { alpha, fonts, radius, useTheme, useTint } from '../../lib/theme';
-import { Button, Card, ErrorBox, Meter, Press, Reveal, Screen, T, hair } from '../../components/ui';
+import { Button, Card, ErrorBox, Eyebrow, Meter, Press, Reveal, Screen, T, hair } from '../../components/ui';
+import { TopBar } from '../../components/TopBar';
 import { LoadingDots } from '../../components/LoadingDots';
 import { CourseCard } from '../../components/CourseCard';
 import { KushiEmoji } from '../../components/KushiEmoji';
@@ -63,12 +64,15 @@ export default function TodayScreen() {
 			refreshControl={<RefreshControl refreshing={fetching && !!data} tintColor={t.accent} onRefresh={() => refetch({ requestPolicy: 'network-only' })} />}
 			contentContainerStyle={{ gap: 20, paddingHorizontal: 20, width: '100%', maxWidth: 680, alignSelf: 'center' }}
 		>
-			{/* Header: Greeting + Streak Pill */}
-			<Reveal style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 6 }}>
-				<View style={{ gap: 2 }}>
-					<Text style={{ fontFamily: fonts.bodyMedium, fontSize: 14, color: t.muted }}>{greeting()},</Text>
-					<Text accessibilityRole="header" style={{ fontFamily: fonts.bodyBold, fontSize: 28, lineHeight: 33, letterSpacing: -0.5, color: t.fg }}>
-						{firstName || 'Student'}
+			{/* Transparent Brand + Profile Top Bar */}
+			<TopBar />
+
+			{/* Greeting + Streak Pill */}
+			<Reveal style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
+				<View style={{ flex: 1 }}>
+					<Eyebrow>{greeting()}</Eyebrow>
+					<Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: 25, lineHeight: 31, letterSpacing: -0.7, color: t.fg }}>
+						{firstName ? `${firstName}.` : 'Welcome back.'}
 					</Text>
 				</View>
 				{today && today.streakDays > 0 ? (
@@ -80,9 +84,9 @@ export default function TodayScreen() {
 							paddingHorizontal: 12,
 							paddingVertical: 6,
 							borderRadius: radius.pill,
-							backgroundColor: alpha(t.amber, 0.14),
+							backgroundColor: alpha(t.amber, 0.13),
 							borderWidth: hair,
-							borderColor: alpha(t.amber, 0.36)
+							borderColor: alpha(t.amber, 0.38)
 						}}
 					>
 						<KushiEmoji name="fire" size={16} />

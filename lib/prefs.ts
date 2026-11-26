@@ -1,22 +1,35 @@
-// Persistent user preferences synced across Lesson Reader, Diagrams, Traces, and Settings.
+// Persistent user preferences synced across Lesson Reader, Diagrams, Traces, Focus Timer, and Settings.
 import { create } from 'zustand';
 import { prefs } from './storage';
 
-export type AnimSpeed = 0.75 | 1 | 1.5;
-
-const K_SPEED = 'ks.animSpeed';
+const K_ANIM_SPEED = 'ks.animSpeed';
+const K_STEP_SPEED = 'ks.stepSpeed';
 const K_SCALE = 'ks.textScale';
 const K_SOUNDS = 'ks.sounds';
 const K_OLLIE = 'ks.showOllie';
+const K_FOCUS_MIN = 'ks.focusMinutes';
+const K_BREAK_MIN = 'ks.breakMinutes';
 
-function readSpeed(): AnimSpeed {
-	const v = Number(prefs.get(K_SPEED));
-	return v === 0.75 || v === 1.5 ? v : 1;
+function clampStep(v: number, min: number, max: number, step: number, fallback: number): number {
+	if (!Number.isFinite(v)) return fallback;
+	const clamped = Math.max(min, Math.min(max, v));
+	return Math.round(clamped / step) * step;
+}
+
+function readAnimSpeed(): number {
+	const raw = prefs.get(K_ANIM_SPEED);
+	if (raw == null) return 1;
+	return clampStep(Number(raw), 0.5, 2.0, 0.25, 1);
+}
+function readStepSpeed(): number {
+	const raw = prefs.get(K_STEP_SPEED);
+	if (raw == null) return 1;
+	return clampStep(Number(raw), 0.5, 2.5, 0.25, 1);
 }
 function readScale(): number {
-	const v = Number(prefs.get(K_SCALE));
-	if (!Number.isFinite(v) || v < 0.9 || v > 1.3) return 1;
-	return Math.round(v * 20) / 20;
+	const raw = prefs.get(K_SCALE);
+	if (raw == null) return 1;
+	return clampStep(Number(raw), 0.9, 1.3, 0.05, 1);
 }
 function readSounds(): boolean {
 	return prefs.get(K_SOUNDS) !== '0';
@@ -24,29 +37,58 @@ function readSounds(): boolean {
 function readShowOllie(): boolean {
 	return prefs.get(K_OLLIE) !== '0';
 }
+function readFocusMinutes(): number {
+	const raw = prefs.get(K_FOCUS_MIN);
+	if (raw == null) return 25;
+	return clampStep(Number(raw), 5, 60, 5, 25);
+}
+function readBreakMinutes(): number {
+	const raw = prefs.get(K_BREAK_MIN);
+	if (raw == null) return 5;
+	return clampStep(Number(raw), 1, 20, 1, 5);
+}
+
+export type AnimSpeed = number;
 
 export const useStudyPrefs = create<{
-	animSpeed: AnimSpeed;
+	/** Motion speed multiplier for transitions/springs (0.5× – 2.0×). */
+	animSpeed: number;
+	/** Step pacing multiplier for auto-playing traces & diagrams (0.5× – 2.5×). */
+	stepSpeed: number;
 	textScale: number;
 	sounds: boolean;
 	showOllie: boolean;
-	setAnimSpeed(v: AnimSpeed): void;
+	focusMinutes: number;
+	breakMinutes: number;
+	setAnimSpeed(v: number): void;
+	setStepSpeed(v: number): void;
 	setTextScale(v: number): void;
 	setSounds(v: boolean): void;
 	setShowOllie(v: boolean): void;
+	setFocusMinutes(v: number): void;
+	setBreakMinutes(v: number): void;
 }>((set) => ({
-	animSpeed: readSpeed(),
+	animSpeed: readAnimSpeed(),
+	stepSpeed: readStepSpeed(),
 	textScale: readScale(),
 	sounds: readSounds(),
 	showOllie: readShowOllie(),
+	focusMinutes: readFocusMinutes(),
+	breakMinutes: readBreakMinutes(),
 	setAnimSpeed(v) {
-		prefs.set(K_SPEED, String(v));
-		set({ animSpeed: v });
+		const next = clampStep(v, 0.5, 2.0, 0.25, 1);
+		prefs.set(K_ANIM_SPEED, String(next));
+		set({ animSpeed: next });
+	},
+	setStepSpeed(v) {
+		const next = clampStep(v, 0.5, 2.5, 0.25, 1);
+		prefs.set(K_STEP_SPEED, String(next));
+		set({ stepSpeed: next });
 	},
 	setTextScale(v) {
-		const clamped = Math.round(Math.max(0.9, Math.min(1.3, v)) * 20) / 20;
-		prefs.set(K_SCALE, String(clamped));
-		set({ textScale: clamped });
+		const next = clampStep(v, 0.9, 1.3, 0.05, 1);
+		prefs.set(K_SCALE, String(next));
+		set({ textScale: next });
 	},
 	setSounds(v) {
 		prefs.set(K_SOUNDS, v ? '1' : '0');
@@ -55,5 +97,15 @@ export const useStudyPrefs = create<{
 	setShowOllie(v) {
 		prefs.set(K_OLLIE, v ? '1' : '0');
 		set({ showOllie: v });
+	},
+	setFocusMinutes(v) {
+		const next = clampStep(v, 5, 60, 5, 25);
+		prefs.set(K_FOCUS_MIN, String(next));
+		set({ focusMinutes: next });
+	},
+	setBreakMinutes(v) {
+		const next = clampStep(v, 1, 20, 1, 5);
+		prefs.set(K_BREAK_MIN, String(next));
+		set({ breakMinutes: next });
 	}
 }));

@@ -1,12 +1,11 @@
-// A lesson figure (matches study_web_app Figure.svelte): a picture with numbered hotspots.
-// Tap a numbered dot on the picture OR a numbered chip below to read its note.
-// Arrows, lines and labels are drawn with crisp white halos for legibility over any image.
-// A figure never animates/steps: everything shows at once (legacy `steps` are ignored just like web).
-import { useState } from 'react';
+// A lesson figure (matches study_web_app Figure.svelte): a textbook illustration with
+// non-obstructing outer numbered callouts connected by crisp elbow leader lines to tiny pinpoint dots.
+// Tap any outer number OR a numbered chip below to highlight its leader line and read its note.
+import { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
-import Svg, { G, Line, Polygon, Text as SText } from 'react-native-svg';
+import Svg, { Circle, G, Line, Polyline, Polygon, Text as SText } from 'react-native-svg';
 import type { Block, FigureMark } from '../../lib/api/types';
 import { alpha, fonts, mix, radius, useTheme, type Hue, type HueSet } from '../../lib/theme';
 import { Html } from '../Html';
@@ -15,6 +14,40 @@ import { SmallBtn } from './Blocks';
 
 type FigureBlock = Extract<Block, { type: 'figure' }>;
 
+interface CalloutLayout {
+	index: number;
+	side: 'left' | 'right';
+	tx: number;
+	ty: number;
+	bx: number;
+	by: number;
+	elbowX: number;
+}
+
+/** Spreads badges along a vertical gutter without overlap while staying close to each target Y. */
+function spreadY(items: { index: number; ty: number }[], minGap: number, minY: number, maxY: number): Map<number, number> {
+	const sorted = [...items].sort((a, b) => a.ty - b.ty);
+	const ys = sorted.map((it) => Math.max(minY, Math.min(maxY, it.ty)));
+	for (let i = 1; i < ys.length; i++) {
+		if (ys[i] < ys[i - 1] + minGap) ys[i] = ys[i - 1] + minGap;
+	}
+	if (ys.length && ys[ys.length - 1] > maxY) {
+		ys[ys.length - 1] = maxY;
+		for (let i = ys.length - 2; i >= 0; i--) {
+			if (ys[i] > ys[i + 1] - minGap) ys[i] = ys[i + 1] - minGap;
+		}
+		if (ys[0] < minY) {
+			const span = Math.max(1, maxY - minY);
+			for (let i = 0; i < ys.length; i++) {
+				ys[i] = minY + (ys.length === 1 ? span / 2 : (i / (ys.length - 1)) * span);
+			}
+		}
+	}
+	const out = new Map<number, number>();
+	sorted.forEach((it, i) => out.set(it.index, ys[i]));
+	return out;
+}
+
 export function Figure({ block, hue, width }: { block: FigureBlock; hue: HueSet; width: number }) {
 	const t = useTheme();
 	const { image, spots = [], marks = [], caption } = block;
@@ -22,13 +55,47 @@ export function Figure({ block, hue, width }: { block: FigureBlock; hue: HueSet;
 	const [failed, setFailed] = useState(false);
 	const [attempt, setAttempt] = useState(0);
 
-	const innerW = Math.max(1, width - 24 - 2 * hair);
+	const stageW = Math.max(1, width - 24 - 2 * hair);
+	const hasSpots = spots.length > 0;
+	const padX = hasSpots ? 36 : 0;
+	const padY = hasSpots ? 12 : 0;
+	const dispW = Math.max(80, stageW - padX * 2);
 	const imgW = image?.width && Number.isFinite(image.width) && image.width > 0 ? image.width : 1;
 	const imgH = image?.height && Number.isFinite(image.height) && image.height > 0 ? image.height : 1;
-	const scale = innerW / imgW;
-	const h = Math.max(1, imgH * scale);
+	const scale = dispW / imgW;
+	const dispH = Math.max(1, imgH * scale);
+	const minSideH = useMemo(() => {
+		if (!hasSpots) return dispH;
+		const leftN = spots.filter((s) => s.x < imgW / 2).length;
+		const rightN = spots.length - leftN;
+		return Math.max(dispH + padY * 2, Math.max(leftN, rightN) * 30 + 16);
+	}, [hasSpots, spots, imgW, dispH, padY]);
+	const stageH = minSideH;
+	const imgTop = (stageH - dispH) / 2;
+
 	/** Picture pixels per screen pixel so marks stay crisp at any image resolution. */
-	const k = imgW / Math.max(1, innerW);
+	const k = imgW / Math.max(1, dispW);
+
+	const callouts = useMemo<CalloutLayout[]>(() => {
+		if (!hasSpots) return [];
+		const leftItems: { index: number; ty: number }[] = [];
+		const rightItems: { index: number; ty: number }[] = [];
+		const raw = spots.map((s, index) => {
+			const side: 'left' | 'right' = s.x < imgW / 2 ? 'left' : 'right';
+			const tx = padX + s.x * scale;
+			const ty = imgTop + s.y * scale;
+			(side === 'left' ? leftItems : rightItems).push({ index, ty });
+			return { index, side, tx, ty };
+		});
+		const leftY = spreadY(leftItems, 28, 15, stageH - 15);
+		const rightY = spreadY(rightItems, 28, 15, stageH - 15);
+		return raw.map((r) => ({
+			...r,
+			bx: r.side === 'left' ? padX / 2 : padX + dispW + padX / 2,
+			by: (r.side === 'left' ? leftY.get(r.index) : rightY.get(r.index)) ?? r.ty,
+			elbowX: r.side === 'left' ? padX - 4 : padX + dispW + 4
+		}));
+	}, [hasSpots, spots, imgW, padX, scale, imgTop, stageH, dispW]);
 
 	const colorOf = (m: FigureMark) =>
 		m.hue === 'accent' || !m.hue ? hue.base : m.hue === 'ink' ? '#1d2430' : (t.hues[m.hue as Hue]?.base ?? hue.base);
@@ -70,6 +137,8 @@ export function Figure({ block, hue, width }: { block: FigureBlock; hue: HueSet;
 		setActive((cur) => (cur === i ? null : i));
 	};
 
+	const paperBg = t.name === 'night' ? '#eae6de' : '#f8f6f1';
+
 	return (
 		<View
 			style={{
@@ -84,8 +153,8 @@ export function Figure({ block, hue, width }: { block: FigureBlock; hue: HueSet;
 		>
 			<LuminousBg from={mix(hue.base, t.name === 'night' ? 8 : 5, t.surface)} to={t.surface} borderRadius={radius.md} />
 
-			{/* Image stage with crisp light backing matching web Figure.svelte */}
-			<View style={{ borderRadius: 14, overflow: 'hidden', backgroundColor: t.name === 'night' ? '#eae6de' : '#f8f6f1', width: innerW, height: h }}>
+			{/* Textbook illustration stage with clean side gutters for non-obstructing leader-line callouts */}
+			<View style={{ borderRadius: 14, overflow: 'hidden', backgroundColor: paperBg, width: stageW, height: stageH }}>
 				{failed ? (
 					<View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20, gap: 10 }}>
 						<T v="small" style={{ textAlign: 'center', color: '#475569' }}>
@@ -104,7 +173,7 @@ export function Figure({ block, hue, width }: { block: FigureBlock; hue: HueSet;
 				) : (
 					<Image
 						source={{ uri: imgSrc }}
-						style={{ width: innerW, height: h }}
+						style={{ position: 'absolute', left: padX, top: imgTop, width: dispW, height: dispH }}
 						contentFit="contain"
 						transition={220}
 						accessibilityLabel={image.alt}
@@ -113,7 +182,13 @@ export function Figure({ block, hue, width }: { block: FigureBlock; hue: HueSet;
 				)}
 
 				{marks.length && !failed ? (
-					<Svg width={innerW} height={h} viewBox={`0 0 ${imgW} ${imgH}`} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
+					<Svg
+						width={dispW}
+						height={dispH}
+						viewBox={`0 0 ${imgW} ${imgH}`}
+						style={{ position: 'absolute', left: padX, top: imgTop }}
+						pointerEvents="none"
+					>
 						{marks.map((m, i) => {
 							const c = colorOf(m);
 							const x2 = m.x2 ?? m.x1;
@@ -169,28 +244,49 @@ export function Figure({ block, hue, width }: { block: FigureBlock; hue: HueSet;
 					</Svg>
 				) : null}
 
+				{/* Crisp elbow leader lines + tiny pinpoint target dots (zero obstruction over the drawing) */}
+				{!failed && callouts.length ? (
+					<Svg width={stageW} height={stageH} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
+						{callouts.map((c) => {
+							const isOn = active === c.index;
+							const dim = active !== null && !isOn;
+							const pts = `${c.bx},${c.by} ${c.elbowX},${c.by} ${c.tx},${c.ty}`;
+							return (
+								<G key={c.index} opacity={dim ? 0.24 : 1}>
+									<Polyline points={pts} fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth={isOn ? 4.2 : 3.2} strokeLinecap="round" strokeLinejoin="round" />
+									<Polyline points={pts} fill="none" stroke={isOn ? hue.base : '#334155'} strokeWidth={isOn ? 2.1 : 1.35} strokeLinecap="round" strokeLinejoin="round" />
+									<Circle cx={c.tx} cy={c.ty} r={isOn ? 4.5 : 3.3} fill={isOn ? hue.base : '#1e293b'} stroke="#ffffff" strokeWidth={1.6} />
+								</G>
+							);
+						})}
+					</Svg>
+				) : null}
+
+				{/* Outer numbered circles placed cleanly in the left/right whitespace gutters */}
 				{!failed &&
-					spots.map((s, i) => {
-						const isOn = active === i;
+					callouts.map((c) => {
+						const s = spots[c.index];
+						const isOn = active === c.index;
+						const dim = active !== null && !isOn;
 						return (
-							<View key={i} style={{ position: 'absolute', left: s.x * scale - 14, top: s.y * scale - 14 }}>
+							<View key={c.index} style={{ position: 'absolute', left: c.bx - 12, top: c.by - 12, opacity: dim ? 0.42 : 1 }}>
 								<Press
-									onPress={() => toggleSpot(i)}
+									onPress={() => toggleSpot(c.index)}
 									accessibilityRole="button"
 									accessibilityLabel={s.title}
-									hitSlop={10}
+									hitSlop={8}
 									style={{
-										width: 28,
-										height: 28,
-										borderRadius: 14,
-										backgroundColor: isOn ? t.fg : hue.base,
-										borderWidth: 2.5,
+										width: 24,
+										height: 24,
+										borderRadius: 12,
+										backgroundColor: isOn ? hue.base : '#1e293b',
+										borderWidth: 2,
 										borderColor: '#ffffff',
 										alignItems: 'center',
 										justifyContent: 'center'
 									}}
 								>
-									<Text style={{ color: isOn ? t.bg : t.onHue, fontFamily: fonts.readHeavy, fontSize: 12 }}>{i + 1}</Text>
+									<Text style={{ color: isOn ? t.onHue : '#ffffff', fontFamily: fonts.readHeavy, fontSize: 11 }}>{c.index + 1}</Text>
 								</Press>
 							</View>
 						);
@@ -207,10 +303,9 @@ export function Figure({ block, hue, width }: { block: FigureBlock; hue: HueSet;
 				</View>
 			) : null}
 
-			{/* Tappable numbered part chips (matching web Figure.svelte .parts) */}
+			{/* Tappable numbered part chips (clean, no redundant "Tap a point:" prefix) */}
 			{spots.length ? (
 				<View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-					<Text style={{ fontFamily: fonts.body, fontSize: 12.5, color: t.muted, marginRight: 2 }}>Tap a point:</Text>
 					{spots.map((s, i) => {
 						const isOn = active === i;
 						return (

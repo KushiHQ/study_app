@@ -14,11 +14,12 @@ export default ({ config }) => ({
 	...config,
 	name: 'Kushi Study',
 	slug: 'kushi-study',
-	version: '1.2.3',
+	version: '1.2.4',
 	orientation: 'portrait',
 	icon: './assets/icon.png',
 	scheme: 'kushistudy',
 	userInterfaceStyle: 'automatic',
+	backgroundColor: '#080D1C',
 	jsEngine: 'hermes',
 	newArchEnabled: true,
 	ios: {
@@ -33,6 +34,7 @@ export default ({ config }) => ({
 	},
 	android: {
 		package: 'ng.kushi.study',
+		backgroundColor: '#080D1C',
 		adaptiveIcon: {
 			foregroundImage: './assets/adaptive-icon.png',
 			backgroundColor: '#080D1C'

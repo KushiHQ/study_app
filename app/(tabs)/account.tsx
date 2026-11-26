@@ -8,7 +8,8 @@ import type { Access, Department, Level, User } from '../../lib/api/types';
 import { errorText, gql } from '../../lib/api/client';
 import { useSession } from '../../lib/session';
 import { unregisterPush } from '../../lib/services';
-import { useStudyPrefs, type AnimSpeed } from '../../lib/prefs';
+import { useStudyPrefs } from '../../lib/prefs';
+import { useFocus } from '../../lib/focus';
 import { alpha, fonts, radius, useTheme, useThemeChoice, type ThemeChoice } from '../../lib/theme';
 import { daysLeft } from '../../lib/study/trial';
 import { Html } from '../../components/Html';
@@ -19,6 +20,7 @@ import {
 	Eyebrow,
 	FieldInput,
 	InfoTip,
+	KushiSlider,
 	Press,
 	Reveal,
 	Screen,
@@ -28,18 +30,27 @@ import {
 	hair
 } from '../../components/ui';
 
-const SPEEDS: { value: AnimSpeed; label: string }[] = [
-	{ value: 0.75, label: '0.75×' },
-	{ value: 1, label: '1×' },
-	{ value: 1.5, label: '1.5×' }
-];
-
 export default function Account() {
 	const t = useTheme();
 	const router = useRouter();
 	const user = useSession((s) => s.user);
 	const { choice, set: setChoice } = useThemeChoice();
-	const { animSpeed, setAnimSpeed, textScale, setTextScale, sounds, setSounds, showOllie, setShowOllie } = useStudyPrefs();
+	const {
+		animSpeed,
+		setAnimSpeed,
+		stepSpeed,
+		setStepSpeed,
+		textScale,
+		setTextScale,
+		sounds,
+		setSounds,
+		showOllie,
+		setShowOllie,
+		focusMinutes,
+		setFocusMinutes,
+		breakMinutes,
+		setBreakMinutes
+	} = useStudyPrefs();
 
 	const [{ data: bd }] = useQuery<{ access: Access }>({ query: BILLING, requestPolicy: 'cache-and-network' });
 	const [{ data: dl }] = useQuery<{ departments: Department[]; levels: Level[] }>({ query: DEPARTMENTS_LEVELS, requestPolicy: 'cache-first' });
@@ -247,36 +258,60 @@ export default function Account() {
 					<ToggleSwitch value={sounds} onChange={setSounds} />
 				</View>
 
-				{/* Animation speed */}
-				<View style={{ paddingVertical: 12, gap: 10, borderTopWidth: hair, borderColor: t.line }}>
-					<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-						<T v="bodyStrong">Animation speed</T>
-						<InfoTip text="Playback speed for step-by-step diagrams and algorithm traces." label="Animation speed info" />
+				{/* Step speed slider */}
+				<View style={{ paddingVertical: 12, gap: 8, borderTopWidth: hair, borderColor: t.line }}>
+					<View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+						<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+							<T v="bodyStrong">Step pacing speed</T>
+							<InfoTip text="How quickly auto-playing steps advance in diagrams and algorithm traces." label="Step pacing speed info" />
+						</View>
+						<Text style={{ fontFamily: fonts.mono, fontSize: 13, color: t.accent }}>{stepSpeed}×</Text>
 					</View>
-					<View style={{ flexDirection: 'row', padding: 3, borderRadius: radius.pill, backgroundColor: t.bg2, borderWidth: hair, borderColor: t.line2 }}>
-						{SPEEDS.map((sp) => {
-							const on = animSpeed === sp.value;
-							return (
-								<Press
-									key={sp.value}
-									haptic
-									onPress={() => setAnimSpeed(sp.value)}
-									accessibilityRole="radio"
-									accessibilityState={{ selected: on }}
-									style={{
-										flex: 1,
-										height: 36,
-										borderRadius: radius.pill,
-										alignItems: 'center',
-										justifyContent: 'center',
-										backgroundColor: on ? t.amber : 'transparent'
-									}}
-								>
-									<Text style={{ fontFamily: fonts.bodyBold, fontSize: 13, color: on ? t.onAmber : t.fg2 }}>{sp.label}</Text>
-								</Press>
-							);
-						})}
+					<KushiSlider value={stepSpeed} min={0.5} max={2.5} step={0.25} onChange={setStepSpeed} minLabel="0.5× (slower)" maxLabel="2.5× (faster)" />
+				</View>
+
+				{/* Animation motion speed slider */}
+				<View style={{ paddingVertical: 12, gap: 8, borderTopWidth: hair, borderColor: t.line }}>
+					<View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+						<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+							<T v="bodyStrong">Animation speed</T>
+							<InfoTip text="Controls how fast springs and transitions animate inside lessons." label="Animation speed info" />
+						</View>
+						<Text style={{ fontFamily: fonts.mono, fontSize: 13, color: t.accent }}>{animSpeed}×</Text>
 					</View>
+					<KushiSlider value={animSpeed} min={0.5} max={2.0} step={0.25} onChange={setAnimSpeed} minLabel="0.5× (gentle)" maxLabel="2× (snappy)" />
+				</View>
+
+				{/* Pomodoro focus duration slider */}
+				<View style={{ paddingVertical: 12, gap: 8, borderTopWidth: hair, borderColor: t.line }}>
+					<View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+						<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+							<T v="bodyStrong">Focus timer duration</T>
+							<InfoTip text="Length of each Pomodoro focus round before your break chime." label="Focus duration info" />
+						</View>
+						<Text style={{ fontFamily: fonts.mono, fontSize: 13, color: t.accent }}>{focusMinutes} min</Text>
+					</View>
+					<KushiSlider
+						value={focusMinutes}
+						min={5}
+						max={60}
+						step={5}
+						onChange={(v) => {
+							setFocusMinutes(v);
+							useFocus.getState().syncDuration();
+						}}
+						minLabel="5 min"
+						maxLabel="60 min"
+					/>
+				</View>
+
+				{/* Break duration slider */}
+				<View style={{ paddingVertical: 12, gap: 8, borderTopWidth: hair, borderColor: t.line }}>
+					<View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+						<T v="bodyStrong">Break duration</T>
+						<Text style={{ fontFamily: fonts.mono, fontSize: 13, color: t.accent }}>{breakMinutes} min</Text>
+					</View>
+					<KushiSlider value={breakMinutes} min={1} max={20} step={1} onChange={setBreakMinutes} minLabel="1 min" maxLabel="20 min" />
 				</View>
 
 				{/* Text size */}

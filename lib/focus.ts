@@ -1,4 +1,4 @@
-// Focus timer: 25 minutes of focus, then a 5-minute break (same as the web).
+// Focus timer: customizable Pomodoro focus & break durations (defaults 25m / 5m).
 // Kept as an end time so it stays right while the app sleeps; a local
 // notification fires when the phase ends even if the app is closed.
 import { Platform } from 'react-native';
@@ -6,12 +6,14 @@ import { create } from 'zustand';
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 import { prefs } from './storage';
+import { useStudyPrefs } from './prefs';
 
-export const FOCUS_SECONDS = 25 * 60;
-export const BREAK_SECONDS = 5 * 60;
 const KEY = 'ks.focus';
 
 export type FocusPhase = 'idle' | 'focus' | 'break';
+
+export const focusSeconds = () => useStudyPrefs.getState().focusMinutes * 60;
+export const breakSeconds = () => useStudyPrefs.getState().breakMinutes * 60;
 
 interface Saved {
 	phase: FocusPhase;
@@ -20,12 +22,17 @@ interface Saved {
 	rounds: number;
 }
 
+export type FocusCue = 'start' | 'end';
+
 interface FocusState extends Saved {
 	note: string;
 	musicOn: boolean;
 	track: number;
+	cue: FocusCue | null;
+	cueSeq: number;
 	toggleMusic(): void;
 	nextTrack(count: number): void;
+	syncDuration(): void;
 	start(): void;
 	pause(): void;
 	reset(): void;
@@ -58,20 +65,29 @@ export const useFocus = create<FocusState>((set, get) => {
 	};
 	return {
 		phase: saved?.phase ?? 'idle',
-		left: saved?.left ?? FOCUS_SECONDS,
+		left: saved?.left ?? focusSeconds(),
 		endsAt: saved?.endsAt ?? null,
 		rounds: saved?.rounds ?? 0,
 		note: '',
 		musicOn: false,
 		track: 0,
+		cue: null,
+		cueSeq: 0,
 		toggleMusic: () => set((s) => ({ musicOn: !s.musicOn })),
 		nextTrack: (count) => set((s) => ({ track: (s.track + 1) % count })),
+		syncDuration() {
+			const s = get();
+			if (s.phase === 'idle' && !s.endsAt) {
+				set({ left: focusSeconds() });
+			}
+		},
 		start() {
 			const s = get();
 			const phase = s.phase === 'idle' ? 'focus' : s.phase;
-			const left = s.phase === 'idle' ? FOCUS_SECONDS : s.left;
+			const left = s.phase === 'idle' ? focusSeconds() : s.left;
 			const endsAt = Date.now() + left * 1000;
-			set({ phase, left, endsAt, note: '' });
+			Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+			set({ phase, left, endsAt, note: '', cue: 'start', cueSeq: s.cueSeq + 1 });
 			schedule(endsAt, phase);
 			save();
 		},
@@ -83,18 +99,19 @@ export const useFocus = create<FocusState>((set, get) => {
 			save();
 		},
 		reset() {
-			set({ phase: 'idle', left: FOCUS_SECONDS, endsAt: null, note: '' });
+			set({ phase: 'idle', left: focusSeconds(), endsAt: null, note: '' });
 			schedule(null, 'idle');
 			save();
 		},
 		skip() {
 			const s = get();
 			if (s.phase === 'focus') {
-				const endsAt = Date.now() + BREAK_SECONDS * 1000;
-				set({ phase: 'break', left: BREAK_SECONDS, endsAt, note: '' });
+				const brk = breakSeconds();
+				const endsAt = Date.now() + brk * 1000;
+				set({ phase: 'break', left: brk, endsAt, note: '', cue: 'end', cueSeq: s.cueSeq + 1 });
 				schedule(endsAt, 'break');
 			} else {
-				set({ phase: 'focus', left: FOCUS_SECONDS, endsAt: null, note: '' });
+				set({ phase: 'focus', left: focusSeconds(), endsAt: null, note: '' });
 				schedule(null, 'focus');
 			}
 			save();
@@ -109,11 +126,28 @@ export const useFocus = create<FocusState>((set, get) => {
 			}
 			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 			if (s.phase === 'focus') {
-				const endsAt = Date.now() + BREAK_SECONDS * 1000;
-				set({ phase: 'break', left: BREAK_SECONDS, endsAt, rounds: s.rounds + 1, note: 'Good focus. Stand up, stretch and drink some water. Five-minute break.' });
+				const brk = breakSeconds();
+				const brkMin = useStudyPrefs.getState().breakMinutes;
+				const endsAt = Date.now() + brk * 1000;
+				set({
+					phase: 'break',
+					left: brk,
+					endsAt,
+					rounds: s.rounds + 1,
+					note: `Good focus. Stand up, stretch and drink some water. ${brkMin}-minute break.`,
+					cue: 'end',
+					cueSeq: s.cueSeq + 1
+				});
 				schedule(endsAt, 'break');
 			} else {
-				set({ phase: 'focus', left: FOCUS_SECONDS, endsAt: null, note: 'Break over. Start the next round when you are ready.' });
+				set({
+					phase: 'focus',
+					left: focusSeconds(),
+					endsAt: null,
+					note: 'Break over. Start the next round when you are ready.',
+					cue: 'end',
+					cueSeq: s.cueSeq + 1
+				});
 			}
 			save();
 		}

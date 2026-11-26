@@ -1,7 +1,7 @@
 // Small building blocks in the Kushi Study look: text styles, buttons, luminous
 // gradient cards, chips, custom tooltips, toggle switches, recessed inputs,
 // and frosted bottom-sheet selects. Colours always come from the theme.
-import { forwardRef, useEffect, useId, useState, type ReactNode } from 'react';
+import { forwardRef, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import {
 	ActivityIndicator,
 	Modal,
@@ -598,6 +598,92 @@ export function Meter({ value, color, track, height = 6 }: { value: number; colo
 	return (
 		<View style={{ height, borderRadius: height, backgroundColor: track ?? t.surface2, overflow: 'hidden' }}>
 			<Animated.View style={[{ height, borderRadius: height, backgroundColor: color ?? t.amber }, a]} />
+		</View>
+	);
+}
+
+/** Smooth tactile stepped slider with drag & tap-to-seek + subtle haptic clicks. */
+export function KushiSlider({
+	value,
+	min,
+	max,
+	step,
+	onChange,
+	minLabel,
+	maxLabel,
+	accent
+}: {
+	value: number;
+	min: number;
+	max: number;
+	step: number;
+	onChange: (v: number) => void;
+	minLabel?: string;
+	maxLabel?: string;
+	accent?: string;
+}) {
+	const t = useTheme();
+	const [trackW, setTrackW] = useState(0);
+	const lastRef = useRef(value);
+	lastRef.current = value;
+	const col = accent ?? t.amber;
+	const pct = Math.max(0, Math.min(1, (value - min) / Math.max(0.0001, max - min)));
+
+	const updateAt = (x: number) => {
+		if (trackW <= 0) return;
+		const ratio = Math.max(0, Math.min(1, x / trackW));
+		const raw = min + ratio * (max - min);
+		const snapped = Math.round(raw / step) * step;
+		const clamped = Number(Math.max(min, Math.min(max, snapped)).toFixed(4));
+		if (clamped !== lastRef.current) {
+			lastRef.current = clamped;
+			Haptics.selectionAsync().catch(() => {});
+			onChange(clamped);
+		}
+	};
+
+	const thumbX = pct * trackW;
+
+	return (
+		<View style={{ gap: 6 }}>
+			<View
+				onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}
+				onStartShouldSetResponder={() => true}
+				onMoveShouldSetResponder={() => true}
+				onResponderGrant={(e) => updateAt(e.nativeEvent.locationX)}
+				onResponderMove={(e) => updateAt(e.nativeEvent.locationX)}
+				style={{ height: 34, justifyContent: 'center' }}
+			>
+				<View style={{ height: 6, borderRadius: 3, backgroundColor: t.bg2, borderWidth: hair, borderColor: t.line2, overflow: 'hidden' }}>
+					<View style={{ width: `${pct * 100}%`, height: '100%', backgroundColor: col, borderRadius: 3 }} />
+				</View>
+				{trackW > 0 ? (
+					<View
+						pointerEvents="none"
+						style={{
+							position: 'absolute',
+							left: Math.max(0, Math.min(trackW - 22, thumbX - 11)),
+							width: 22,
+							height: 22,
+							borderRadius: 11,
+							backgroundColor: col,
+							borderWidth: 2.5,
+							borderColor: t.surface,
+							shadowColor: '#000',
+							shadowOpacity: 0.25,
+							shadowRadius: 4,
+							shadowOffset: { width: 0, height: 2 },
+							elevation: 3
+						}}
+					/>
+				) : null}
+			</View>
+			{minLabel || maxLabel ? (
+				<View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+					<Text style={{ fontFamily: fonts.mono, fontSize: 10.5, color: t.muted }}>{minLabel ?? ''}</Text>
+					<Text style={{ fontFamily: fonts.mono, fontSize: 10.5, color: t.muted }}>{maxLabel ?? ''}</Text>
+				</View>
+			) : null}
 		</View>
 	);
 }

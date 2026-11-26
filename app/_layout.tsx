@@ -1,6 +1,7 @@
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Platform, View } from 'react-native';
+import { DarkTheme, DefaultTheme, ThemeProvider as NavThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
@@ -66,7 +67,7 @@ function RootLayout() {
 
 	if (!loaded || status === 'loading') return null;
 	return (
-		<GestureHandlerRootView style={{ flex: 1 }}>
+		<GestureHandlerRootView style={{ flex: 1, backgroundColor: '#080D1C' }}>
 			<SafeAreaProvider>
 				<ThemeProvider>
 					<Urql value={client}>
@@ -101,22 +102,40 @@ function Shell() {
 		else if (status === 'signedIn' && inAuth) router.replace(user && needsStudySetup(user) ? '/onboarding' : '/');
 	}, [status, inAuth, router, user]);
 
+	const navTheme = useMemo(() => {
+		const base = t.name === 'night' ? DarkTheme : DefaultTheme;
+		return {
+			...base,
+			colors: {
+				...base.colors,
+				primary: t.amber,
+				background: t.bg,
+				card: t.bg,
+				text: t.fg,
+				border: t.line,
+				notification: t.amber
+			}
+		};
+	}, [t.name, t.amber, t.bg, t.fg, t.line]);
+
 	return (
-		<View style={{ flex: 1, backgroundColor: t.bg }}>
-			<StatusBar style={t.statusBar} />
-			{status === 'signedIn' ? <FocusSession /> : null}
-			<Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, animation: reduceMotion ? 'none' : 'fade', animationDuration: 230 }}>
-				<Stack.Screen name="(tabs)" />
-				<Stack.Screen name="(auth)" />
-				<Stack.Screen name="onboarding" />
-				<Stack.Screen name="c/[slug]/index" />
-				<Stack.Screen name="c/[slug]/l/[lessonId]" />
-				<Stack.Screen name="c/[slug]/quiz/[quizId]" options={{ animation: activityAnimation, gestureEnabled: false }} />
-				<Stack.Screen name="c/[slug]/cards" options={{ animation: activityAnimation }} />
-				<Stack.Screen name="c/[slug]/practice" options={{ animation: activityAnimation }} />
-				<Stack.Screen name="plan" options={{ presentation: 'modal' }} />
-			</Stack>
-		</View>
+		<NavThemeProvider value={navTheme}>
+			<View style={{ flex: 1, backgroundColor: t.bg }}>
+				<StatusBar style={t.statusBar} />
+				{status === 'signedIn' ? <FocusSession /> : null}
+				<Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, animation: reduceMotion ? 'none' : 'fade', animationDuration: 180 }}>
+					<Stack.Screen name="(tabs)" />
+					<Stack.Screen name="(auth)" />
+					<Stack.Screen name="onboarding" />
+					<Stack.Screen name="c/[slug]/index" />
+					<Stack.Screen name="c/[slug]/l/[lessonId]" />
+					<Stack.Screen name="c/[slug]/quiz/[quizId]" options={{ animation: activityAnimation, gestureEnabled: false }} />
+					<Stack.Screen name="c/[slug]/cards" options={{ animation: activityAnimation }} />
+					<Stack.Screen name="c/[slug]/practice" options={{ animation: activityAnimation }} />
+					<Stack.Screen name="plan" options={{ presentation: 'modal' }} />
+				</Stack>
+			</View>
+		</NavThemeProvider>
 	);
 }
 

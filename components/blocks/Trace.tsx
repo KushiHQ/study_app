@@ -19,14 +19,23 @@ import { Html } from '../Html';
 import { LuminousBg, Press, T, hair } from '../ui';
 import { Eye } from './Blocks';
 
-const SPEEDS: AnimSpeed[] = [1, 1.5, 0.75];
+const SPEEDS: AnimSpeed[] = [0.75, 1, 1.25, 1.5, 2];
 const ID_HUES: Hue[] = ['sky', 'peach', 'lilac', 'rose'];
 const EASE_OUT = Easing.bezier(0.22, 1, 0.36, 1);
-const CRISP_SPRING = { damping: 28, stiffness: 340, mass: 0.8, reduceMotion: ReduceMotion.Never } as const;
-const FAST_FADE = { duration: 160, easing: EASE_OUT, reduceMotion: ReduceMotion.Never } as const;
+const springFor = (speed: number) => ({
+	damping: 18,
+	stiffness: Math.round(240 * Math.max(0.5, Math.min(2, speed))),
+	mass: 0.9,
+	reduceMotion: ReduceMotion.Never
+});
+const fadeFor = (speed: number, baseMs = 200) => ({
+	duration: Math.round(baseMs / Math.max(0.5, Math.min(2, speed))),
+	easing: EASE_OUT,
+	reduceMotion: ReduceMotion.Never
+});
 
 const words = (st: TraceState) => (st.title + ' ' + st.html.replace(/<[^>]+>/g, ' ')).trim().split(/\s+/).filter(Boolean).length;
-const dur = (st: TraceState) => Math.max(1800, Math.min(11000, 900 + 235 * words(st)));
+const dur = (st: TraceState) => Math.max(1200, Math.min(7500, 650 + 165 * words(st)));
 
 /** "a,b,a" → ["a#0","b#0","a#1"]: stable keys by occurrence. */
 function keyed(v: string[]) {
@@ -48,13 +57,14 @@ function edgeEnds(a: { x: number; y: number }, b: { x: number; y: number }, r: n
 export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue: HueSet; width: number; autoplay?: boolean }) {
 	const t = useTheme();
 	const animSpeed = useStudyPrefs((s) => s.animSpeed);
-	const setAnimSpeed = useStudyPrefs((s) => s.setAnimSpeed);
+	const stepSpeed = useStudyPrefs((s) => s.stepSpeed);
+	const setStepSpeed = useStudyPrefs((s) => s.setStepSpeed);
 	const states = block.states ?? [];
 	const [cur, setCur] = useState(0);
 	const [playing, setPlaying] = useState(false);
 	const interacted = useRef(false);
 	const s = states[Math.min(cur, Math.max(0, states.length - 1))];
-	const stepDurationMs = s ? Math.round(dur(s) / animSpeed) : 2000;
+	const stepDurationMs = s ? Math.round(dur(s) / stepSpeed) : 1600;
 
 	// Consistent identity hue per value across all states (matching web Trace.svelte)
 	const idHueMap = useMemo(() => {
@@ -75,13 +85,13 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 	const narY = useSharedValue(0);
 	useEffect(() => {
 		narOp.value = 0.35;
-		narY.value = 4;
+		narY.value = 5;
 		const raf = requestAnimationFrame(() => {
-			narOp.value = withTiming(1, FAST_FADE);
-			narY.value = withTiming(0, FAST_FADE);
+			narOp.value = withTiming(1, fadeFor(animSpeed, 180));
+			narY.value = withTiming(0, fadeFor(animSpeed, 180));
 		});
 		return () => cancelAnimationFrame(raf);
-	}, [cur, narOp, narY]);
+	}, [cur, animSpeed, narOp, narY]);
 	const narStyle = useAnimatedStyle(() => ({
 		opacity: narOp.value,
 		transform: [{ translateY: narY.value }]
@@ -130,7 +140,8 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 
 	const cycleSpeed = () => {
 		Haptics.selectionAsync().catch(() => {});
-		setAnimSpeed(SPEEDS[(SPEEDS.indexOf(animSpeed) + 1) % SPEEDS.length]);
+		const nextIdx = SPEEDS.findIndex((v) => v > stepSpeed);
+		setStepSpeed(SPEEDS[nextIdx >= 0 ? nextIdx : 0]);
 	};
 
 	const kind = block.kind;
@@ -315,7 +326,7 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 				<Press
 					onPress={cycleSpeed}
 					accessibilityRole="button"
-					accessibilityLabel={`Playback speed ${animSpeed}x`}
+					accessibilityLabel={`Step speed ${stepSpeed}x`}
 					style={{
 						paddingHorizontal: 7,
 						height: 28,
@@ -327,7 +338,7 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 						justifyContent: 'center'
 					}}
 				>
-					<Text style={{ fontFamily: fonts.mono, fontSize: 10.5, color: t.fg2 }}>{animSpeed}×</Text>
+					<Text style={{ fontFamily: fonts.mono, fontSize: 10.5, color: t.fg2 }}>{stepSpeed}×</Text>
 				</Press>
 			</View>
 
@@ -393,18 +404,19 @@ function SlidingCell({
 	isQueue: boolean;
 	compact?: boolean;
 }) {
-	const x = useSharedValue(isQueue ? index * stepWidth + 44 : index * stepWidth);
+	const animSpeed = useStudyPrefs((s) => s.animSpeed);
+	const x = useSharedValue(isQueue ? index * stepWidth + 48 : index * stepWidth);
 	const op = useSharedValue(0);
-	const sc = useSharedValue(c.hot ? 1.04 : 1);
+	const sc = useSharedValue(c.hot ? 1.05 : 1);
 
 	useEffect(() => {
 		const raf = requestAnimationFrame(() => {
-			op.value = withTiming(c.dim ? 0.45 : 1, FAST_FADE);
-			x.value = withSpring(index * stepWidth, CRISP_SPRING);
-			sc.value = withSpring(c.hot ? 1.04 : 1, CRISP_SPRING);
+			op.value = withTiming(c.dim ? 0.45 : 1, fadeFor(animSpeed, 180));
+			x.value = withSpring(index * stepWidth, springFor(animSpeed));
+			sc.value = withSpring(c.hot ? 1.05 : 1, springFor(animSpeed));
 		});
 		return () => cancelAnimationFrame(raf);
-	}, [index, stepWidth, c.dim, c.hot, x, op, sc]);
+	}, [index, stepWidth, c.dim, c.hot, animSpeed, x, op, sc]);
 
 	const style = useAnimatedStyle(() => ({
 		opacity: op.value,
@@ -508,18 +520,19 @@ function StackBlock({
 	targetY: number;
 	c: ReturnType<typeof cellColors>;
 }) {
-	const y = useSharedValue(targetY - 40);
+	const animSpeed = useStudyPrefs((s) => s.animSpeed);
+	const y = useSharedValue(targetY - 46);
 	const op = useSharedValue(0);
-	const sc = useSharedValue(c.hot ? 1.03 : 1);
+	const sc = useSharedValue(c.hot ? 1.04 : 1);
 
 	useEffect(() => {
 		const raf = requestAnimationFrame(() => {
-			op.value = withTiming(c.dim ? 0.45 : 1, FAST_FADE);
-			y.value = withSpring(targetY, CRISP_SPRING);
-			sc.value = withSpring(c.hot ? 1.03 : 1, CRISP_SPRING);
+			op.value = withTiming(c.dim ? 0.45 : 1, fadeFor(animSpeed, 180));
+			y.value = withSpring(targetY, springFor(animSpeed));
+			sc.value = withSpring(c.hot ? 1.04 : 1, springFor(animSpeed));
 		});
 		return () => cancelAnimationFrame(raf);
-	}, [targetY, c.dim, c.hot, y, op, sc]);
+	}, [targetY, c.dim, c.hot, animSpeed, y, op, sc]);
 
 	const style = useAnimatedStyle(() => ({
 		opacity: op.value,
@@ -559,14 +572,15 @@ function AnimatedStackView({ s, maxRows, hue, t, idHueMap }: { s: TraceState; ma
 	const wellH = maxRows * (CH + GAP) + 18;
 	const topYOf = (i: number) => wellH - 10 - CH - i * (CH + GAP);
 
+	const animSpeed = useStudyPrefs((s) => s.animSpeed);
 	const ptrY = useSharedValue(s.v.length ? topYOf(s.v.length - 1) + 12 : wellH - 30);
 	useEffect(() => {
 		if (!s.v.length) return;
 		const raf = requestAnimationFrame(() => {
-			ptrY.value = withSpring(topYOf(s.v.length - 1) + 12, CRISP_SPRING);
+			ptrY.value = withSpring(topYOf(s.v.length - 1) + 12, springFor(animSpeed));
 		});
 		return () => cancelAnimationFrame(raf);
-	}, [s.v.length, wellH, ptrY]);
+	}, [s.v.length, wellH, animSpeed, ptrY]);
 	const ptrStyle = useAnimatedStyle(() => ({
 		transform: [{ translateY: ptrY.value }]
 	}));

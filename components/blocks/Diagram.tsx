@@ -14,13 +14,14 @@ import { InfoTip, LuminousBg, Press, hair } from '../ui';
 import { SvgTree } from '../SvgTree';
 
 type Note = { title: string; html: string };
-const SPEEDS: AnimSpeed[] = [1, 1.5, 0.75];
+const SPEEDS: AnimSpeed[] = [0.75, 1, 1.25, 1.5, 2];
 const EASE_OUT = Easing.bezier(0.22, 1, 0.36, 1);
 
 export function Diagram({ svg, caption, parts = [], steps = [], hue, width, autoplay }: { svg: string; caption: string; parts?: (Note & { id: string })[]; steps?: Note[]; hue: HueSet; width: number; autoplay?: boolean }) {
 	const t = useTheme();
 	const animSpeed = useStudyPrefs((s) => s.animSpeed);
-	const setAnimSpeed = useStudyPrefs((s) => s.setAnimSpeed);
+	const stepSpeed = useStudyPrefs((s) => s.stepSpeed);
+	const setStepSpeed = useStudyPrefs((s) => s.setStepSpeed);
 	const byId = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts]);
 	const [active, setActive] = useState<string | null>(null);
 	const [cur, setCur] = useState(-1);
@@ -28,7 +29,7 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 	const interacted = useRef(false);
 	const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 	const last = steps.length - 1;
-	const stepDurationMs = Math.round(2600 / animSpeed);
+	const stepDurationMs = Math.round(2000 / stepSpeed);
 
 	const segFill = useSharedValue(1);
 	const noteOp = useSharedValue(1);
@@ -48,13 +49,14 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 
 	useEffect(() => {
 		noteOp.value = 0.35;
-		noteY.value = 4;
+		noteY.value = 5;
+		const ms = Math.round(180 / Math.max(0.5, Math.min(2, animSpeed)));
 		const raf = requestAnimationFrame(() => {
-			noteOp.value = withTiming(1, { duration: 160, easing: EASE_OUT, reduceMotion: ReduceMotion.Never });
-			noteY.value = withTiming(0, { duration: 160, easing: EASE_OUT, reduceMotion: ReduceMotion.Never });
+			noteOp.value = withTiming(1, { duration: ms, easing: EASE_OUT, reduceMotion: ReduceMotion.Never });
+			noteY.value = withTiming(0, { duration: ms, easing: EASE_OUT, reduceMotion: ReduceMotion.Never });
 		});
 		return () => cancelAnimationFrame(raf);
-	}, [cur, noteOp, noteY]);
+	}, [cur, animSpeed, noteOp, noteY]);
 
 	const segFillStyle = useAnimatedStyle(() => ({ width: `${segFill.value * 100}%` }));
 	const noteStyle = useAnimatedStyle(() => ({ opacity: noteOp.value, transform: [{ translateY: noteY.value }] }));
@@ -84,7 +86,8 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 	};
 	const cycleSpeed = () => {
 		Haptics.selectionAsync().catch(() => {});
-		setAnimSpeed(SPEEDS[(SPEEDS.indexOf(animSpeed) + 1) % SPEEDS.length]);
+		const nextIdx = SPEEDS.findIndex((v) => v > stepSpeed);
+		setStepSpeed(SPEEDS[nextIdx >= 0 ? nextIdx : 0]);
 	};
 
 	const shown = cur < 0 ? last : cur;
@@ -195,7 +198,7 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 						<Press
 							onPress={cycleSpeed}
 							accessibilityRole="button"
-							accessibilityLabel={`Playback speed ${animSpeed}x`}
+							accessibilityLabel={`Step speed ${stepSpeed}x`}
 							style={{
 								paddingHorizontal: 7,
 								height: 28,
@@ -207,7 +210,7 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 								justifyContent: 'center'
 							}}
 						>
-							<Text style={{ fontFamily: fonts.mono, fontSize: 10.5, color: t.fg2 }}>{animSpeed}×</Text>
+							<Text style={{ fontFamily: fonts.mono, fontSize: 10.5, color: t.fg2 }}>{stepSpeed}×</Text>
 						</Press>
 					</View>
 

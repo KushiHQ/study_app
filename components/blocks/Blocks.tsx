@@ -394,9 +394,9 @@ function Think({ prompt, answer, hue }: { prompt: string; answer: string; hue: H
 			ansOp.value = 0;
 			ansY.value = 6;
 			const raf = requestAnimationFrame(() => {
-				pop.value = withSpring(1, { damping: 24, stiffness: 320, mass: 0.8, reduceMotion: ReduceMotion.Never });
-				ansOp.value = withTiming(1, { duration: 200, easing: stepEase, reduceMotion: ReduceMotion.Never });
-				ansY.value = withTiming(0, { duration: 200, easing: stepEase, reduceMotion: ReduceMotion.Never });
+				pop.value = withSpring(1, { damping: 16, stiffness: 250, mass: 0.85, reduceMotion: ReduceMotion.Never });
+				ansOp.value = withTiming(1, { duration: 220, easing: stepEase, reduceMotion: ReduceMotion.Never });
+				ansY.value = withTiming(0, { duration: 220, easing: stepEase, reduceMotion: ReduceMotion.Never });
 			});
 			return () => cancelAnimationFrame(raf);
 		}

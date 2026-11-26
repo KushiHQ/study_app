@@ -84,9 +84,13 @@ function DockIcon({ name, active, color, bg }: { name: TabKey; active: boolean; 
 }
 
 export default function TabsLayout() {
+	const t = useTheme();
 	const reduceMotion = useReducedMotion();
 	return (
-		<Tabs tabBar={(props) => <StudyDock {...props} />} screenOptions={{ headerShown: false, animation: reduceMotion ? 'none' : 'fade' }}>
+		<Tabs
+			tabBar={(props) => <StudyDock {...props} />}
+			screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: t.bg }, animation: reduceMotion ? 'none' : 'fade' }}
+		>
 			<Tabs.Screen name="index" options={{ title: ITEMS.index.label }} />
 			<Tabs.Screen name="courses" options={{ title: ITEMS.courses.label }} />
 			<Tabs.Screen name="account" options={{ title: ITEMS.account.label }} />

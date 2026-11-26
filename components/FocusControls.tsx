@@ -8,8 +8,9 @@ import { ChevronDown, ChevronUp, Headphones } from 'lucide-react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import { WEB_URL } from '../lib/api/client';
 import { clockOf, useFocus } from '../lib/focus';
+import { useStudyPrefs } from '../lib/prefs';
 import { askForNotifications } from '../lib/services';
-import { fonts, radius, useTheme } from '../lib/theme';
+import { alpha, fonts, radius, useTheme } from '../lib/theme';
 import { Button, Press, T, hair } from './ui';
 
 const TRACKS = [
@@ -27,10 +28,32 @@ const READING_SCENE = require('../assets/ollie/scene-reading.mp4');
 const BREAK_SCENE = require('../assets/ollie/scene-break.mp4');
 const READING_POSE = require('../assets/ollie/notes.webp');
 const BREAK_POSE = require('../assets/ollie/thumbs.webp');
+const FOCUS_START_CHIME = require('../assets/sounds/focus-start.wav');
+const FOCUS_END_CHIME = require('../assets/sounds/focus-end.wav');
+const FOCUS_PRESETS = [15, 25, 45, 60];
 
 export function FocusSession() {
 	const running = useFocus((s) => s.endsAt !== null);
 	const musicOn = useFocus((s) => s.musicOn);
+	const cue = useFocus((s) => s.cue);
+	const cueSeq = useFocus((s) => s.cueSeq);
+	const sounds = useStudyPrefs((s) => s.sounds);
+	const chimePlayer = useAudioPlayer(null);
+
+	useEffect(() => {
+		if (!cue || cueSeq === 0 || !sounds) return;
+		const src = cue === 'start' ? FOCUS_START_CHIME : FOCUS_END_CHIME;
+		void (async () => {
+			try {
+				await setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false, interruptionMode: 'mixWithOthers' });
+				chimePlayer.replace(src);
+				chimePlayer.play();
+			} catch {
+				/* audio unavailable */
+			}
+		})();
+	}, [cue, cueSeq, sounds, chimePlayer]);
+
 	useEffect(() => {
 		if (!running) return;
 		useFocus.getState().tick();
@@ -64,6 +87,9 @@ function FocusAudio() {
 export function FocusControls() {
 	const t = useTheme();
 	const f = useFocus();
+	const focusMinutes = useStudyPrefs((s) => s.focusMinutes);
+	const breakMinutes = useStudyPrefs((s) => s.breakMinutes);
+	const setFocusMinutes = useStudyPrefs((s) => s.setFocusMinutes);
 	const [open, setOpen] = useState(false);
 	const [visible, setVisible] = useState(false);
 	const reduceMotion = useReducedMotion();
@@ -89,7 +115,36 @@ export function FocusControls() {
 			</Press>
 			{open ? (
 				<View style={{ paddingBottom: 14, gap: 10 }}>
-					{f.note ? <T v="small">{f.note}</T> : idle ? <T v="small">Read for 25 minutes, then take a 5-minute break.</T> : null}
+					{f.note ? <T v="small">{f.note}</T> : idle ? <T v="small">Read for {focusMinutes} minutes, then take a {breakMinutes}-minute break.</T> : null}
+					{idle ? (
+						<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+							{FOCUS_PRESETS.map((m) => {
+								const on = focusMinutes === m;
+								return (
+									<Press
+										key={m}
+										haptic
+										onPress={() => {
+											setFocusMinutes(m);
+											f.syncDuration();
+										}}
+										style={{
+											paddingHorizontal: 10,
+											height: 30,
+											borderRadius: radius.pill,
+											backgroundColor: on ? alpha(t.amber, 0.18) : t.surface2,
+											borderWidth: hair,
+											borderColor: on ? t.amber : t.line2,
+											alignItems: 'center',
+											justifyContent: 'center'
+										}}
+									>
+										<Text style={{ fontFamily: fonts.mono, fontSize: 12, color: on ? t.accent : t.fg2 }}>{m}m</Text>
+									</Press>
+								);
+							})}
+						</View>
+					) : null}
 					<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
 						<Button small title={idle ? 'Start focus' : running ? 'Pause' : 'Resume'} onPress={() => {
 							if (running) f.pause();

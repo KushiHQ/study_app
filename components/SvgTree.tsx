@@ -84,7 +84,16 @@ export interface StepState {
 	last: number;
 }
 
-function attrsFor(n: HNode, t: Palette, hue: HueSet | undefined, step: StepState | undefined, activePart: string | null): { props: Attrs; hidden: boolean } {
+const SHAPE_TAGS = new Set(['rect', 'circle', 'ellipse', 'line', 'path', 'polygon', 'polyline']);
+
+function attrsFor(
+	n: HNode,
+	t: Palette,
+	hue: HueSet | undefined,
+	step: StepState | undefined,
+	activePart: string | null,
+	highlighted: boolean
+): { props: Attrs; hidden: boolean; nextHighlighted: boolean } {
 	const cls = (n.attrs.class ?? '').split(/\s+/).filter(Boolean);
 	const props: Attrs = classAttrs(cls, n.name, t, hue);
 	for (const [k, v] of Object.entries(n.attrs)) {
@@ -107,6 +116,7 @@ function attrsFor(n: HNode, t: Palette, hue: HueSet | undefined, step: StepState
 		props.orient = 'auto';
 	}
 	let hidden = false;
+	let nextHighlighted = highlighted;
 	if (step && step.last >= 0) {
 		const s = step.cur < 0 ? step.last : step.cur;
 		if (cls.includes('dg-step') || cls.includes('dg-draw')) {
@@ -128,19 +138,23 @@ function attrsFor(n: HNode, t: Palette, hue: HueSet | undefined, step: StepState
 		if (dx || dy) props.transform = `translate(${dx} ${dy})${props.transform ? ' ' + props.transform : ''}`;
 		const hot = (n.attrs['data-hot'] ?? '').split(',').map((x) => parseInt(x, 10));
 		if (step.cur >= 0 && hot.includes(s)) {
-			props.stroke = hue?.base ?? t.amber;
-			props.strokeWidth = 2.6;
+			nextHighlighted = true;
 		}
 	}
 	if (activePart && n.attrs['data-part']) {
 		if (n.attrs['data-part'] === activePart) {
-			props.stroke = hue?.base ?? t.amber;
-			props.strokeWidth = 2.8;
+			nextHighlighted = true;
 		} else {
 			props.opacity = 0.35;
 		}
 	}
-	return { props, hidden };
+	// Apply active/hot highlight stroke ONLY to shape primitives, NEVER to <g> or <text>
+	// (setting stroke on <g> inherits onto child <text> and makes labels an unreadable glowing blob).
+	if (nextHighlighted && SHAPE_TAGS.has(n.name)) {
+		props.stroke = hue?.base ?? t.amber;
+		props.strokeWidth = 2.6;
+	}
+	return { props, hidden, nextHighlighted };
 }
 
 function arrowDefs(t: Palette, hue?: HueSet) {
@@ -171,22 +185,23 @@ const TAGS: Record<string, any> = {
 	stop: Stop
 };
 
-function draw(n: HNode, key: string, c: DrawCtx): ReactElement | string | null {
+function draw(n: HNode, key: string, c: DrawCtx, highlighted = false): ReactElement | string | null {
 	if (n.name === '#text') {
 		const s = (n.text ?? '').replace(/\s+/g, ' ');
 		return s.trim() ? s : null;
 	}
 	const Comp = TAGS[n.name];
 	if (!Comp) return null;
-	const { props, hidden } = attrsFor(n, c.t, c.hue, c.step, c.activePart);
+	const { props, hidden, nextHighlighted } = attrsFor(n, c.t, c.hue, c.step, c.activePart, highlighted);
 	if (hidden) return null;
 	const part = n.attrs['data-part'];
-	const kids = n.children.map((ch, i) => draw(ch, `${key}-${i}`, c)).filter((x) => x !== null);
+	const kids = n.children.map((ch, i) => draw(ch, `${key}-${i}`, c, nextHighlighted)).filter((x) => x !== null);
 	const extra: Attrs & { onPress?: () => void } = {};
 	if (part && c.onPart) extra.onPress = () => c.onPart!(part);
 	if (n.name === 'text' || n.name === 'tspan') {
 		// react-native-svg text needs fontWeight as a string and no CSS font shorthand
 		if (typeof props.fontSize === 'string') props.fontSize = parseFloat(props.fontSize as string) || 14;
+		if (nextHighlighted) props.stroke = 'none';
 	}
 	return (
 		<Comp key={key} {...props} {...extra}>

@@ -139,6 +139,37 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 				</View>
 			) : null}
 
+			{parts.length ? (
+				<View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+					{parts.map((p) => {
+						const isOn = active === p.id;
+						return (
+							<Press
+								key={p.id}
+								onPress={() => {
+									Haptics.selectionAsync().catch(() => {});
+									setActive((a) => (a === p.id ? null : p.id));
+								}}
+								accessibilityRole="button"
+								accessibilityState={{ selected: isOn }}
+								style={{
+									paddingHorizontal: 10,
+									paddingVertical: 5,
+									borderRadius: radius.pill,
+									backgroundColor: isOn ? alpha(hue.base, 0.16) : t.surface2,
+									borderWidth: hair,
+									borderColor: isOn ? hue.base : t.line2
+								}}
+							>
+								<Text style={{ fontFamily: isOn ? fonts.bodyBold : fonts.bodyMedium, fontSize: 12.5, color: isOn ? t.fg : t.fg2 }}>
+									{p.title.replace(/<[^>]+>/g, '')}
+								</Text>
+							</Press>
+						);
+					})}
+				</View>
+			) : null}
+
 			{steps.length ? (
 				<View style={{ gap: 10 }}>
 					{/* Web-parity controls: Play/Pause, Back, animated scrubber track, Next, counter, speed */}

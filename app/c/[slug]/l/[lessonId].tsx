@@ -19,6 +19,7 @@ import { courseHref, quizHref } from '../../../../lib/nav';
 import { plain } from '../../../../lib/html';
 import { Blocks, Eye } from '../../../../components/blocks/Blocks';
 import { Html } from '../../../../components/Html';
+import { HookBlock } from '../../../../components/HookBlock';
 import { QuestionCard } from '../../../../components/QuestionCard';
 import { ReportSheet, type ReportTarget } from '../../../../components/ReportSheet';
 import { TopBar } from '../../../../components/TopBar';
@@ -338,8 +339,8 @@ function Lesson({ slug, id }: { slug: string; id: string }) {
 					</Reveal>
 
 					{lesson.hook ? (
-						<Reveal follow style={{ borderLeftWidth: 2, borderLeftColor: t.accent, paddingLeft: 16 }}>
-							<Html html={lesson.hook} hue={hue} style={{ fontSize: 18, lineHeight: 28 }} />
+						<Reveal follow>
+							<HookBlock html={lesson.hook} hue={hue} />
 						</Reveal>
 					) : null}
 

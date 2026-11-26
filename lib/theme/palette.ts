@@ -185,6 +185,8 @@ export const fonts = {
 	readItalic: 'Nunito_400Regular_Italic',
 	readBold: 'Nunito_700Bold',
 	readHeavy: 'Nunito_800ExtraBold',
+	serifRegular: 'Fraunces_400Regular',
 	serif: 'Fraunces_600SemiBold',
+	serifBold: 'Fraunces_700Bold',
 	serifItalic: 'Fraunces_400Regular_Italic'
 };

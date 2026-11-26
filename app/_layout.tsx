@@ -15,7 +15,7 @@ import { Unbounded_500Medium, Unbounded_600SemiBold } from '@expo-google-fonts/u
 import { InterTight_400Regular, InterTight_500Medium, InterTight_600SemiBold, InterTight_700Bold } from '@expo-google-fonts/inter-tight';
 import { JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
 import { Nunito_400Regular, Nunito_400Regular_Italic, Nunito_700Bold, Nunito_800ExtraBold } from '@expo-google-fonts/nunito';
-import { Fraunces_400Regular_Italic, Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
+import { Fraunces_400Regular, Fraunces_400Regular_Italic, Fraunces_600SemiBold, Fraunces_700Bold } from '@expo-google-fonts/fraunces';
 import { client } from '../lib/api/client';
 import { useSession } from '../lib/session';
 import { needsStudySetup } from '../lib/onboarding';
@@ -52,7 +52,9 @@ function RootLayout() {
 		Nunito_400Regular_Italic,
 		Nunito_700Bold,
 		Nunito_800ExtraBold,
+		Fraunces_400Regular,
 		Fraunces_600SemiBold,
+		Fraunces_700Bold,
 		Fraunces_400Regular_Italic
 	});
 	const status = useSession((s) => s.status);

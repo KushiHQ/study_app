@@ -34,9 +34,9 @@ export type MilestonePayload = {
 };
 
 const CHIMES: Record<MilestoneTier, ReturnType<typeof require>> = {
-	lesson: require('../assets/sounds/chime-lesson.wav'),
-	unit: require('../assets/sounds/chime-unit.wav'),
-	course: require('../assets/sounds/chime-course.wav')
+	lesson: require('../assets/sounds/chime-lesson.mp3'),
+	unit: require('../assets/sounds/chime-unit.mp3'),
+	course: require('../assets/sounds/chime-course.mp3')
 };
 
 // Duration Ollie owns center-stage before gliding up & revealing the cards

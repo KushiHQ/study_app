@@ -1,12 +1,13 @@
 // Bottom-right floating Lesson Reader companion:
-// - Focus timer pill stacked above either the compact 16:9 looping Ollie video
-//   (scene-reading.mp4 / scene-break.mp4) or a sleek circular Music/Ollie toggle FAB.
-// - Tapping opens a clean dark floating popover with the 16:9 Ollie video player,
+// - Focus timer pill stacked above either the interactive 60fps Lottie Ollie desk companion
+//   (tap Ollie to make him wave; automatically stretches & leaves for coffee on break, returns on resume)
+//   or a sleek circular Music/Focus toggle FAB.
+// - Tapping the Focus pill (or the popover controls) opens the dark floating popover with
 //   Focus Timer controls, Study Music playback, and the "Show Ollie reading along" switch.
-import { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Modal, Pressable, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { useVideoPlayer, VideoView } from 'expo-video';
+import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Headphones, Pause, Play, RotateCcw, SkipForward } from 'lucide-react-native';
@@ -14,6 +15,7 @@ import { clockOf, useFocus } from '../lib/focus';
 import { useStudyPrefs } from '../lib/prefs';
 import { askForNotifications } from '../lib/services';
 import { alpha, fonts, radius, useTheme } from '../lib/theme';
+import { OllieDesk } from './OllieDesk';
 import { Press, ToggleSwitch, hair } from './ui';
 
 const TRACKS = [
@@ -27,11 +29,7 @@ const TRACKS = [
 	{ title: 'Lofi Gaming', artist: 'Marek Zielinski' }
 ];
 
-const READING_SCENE = require('../assets/ollie/scene-reading.mp4');
-const BREAK_SCENE = require('../assets/ollie/scene-break.mp4');
 const OLLIE_AVATAR = require('../assets/ollie/ollie-focus.png');
-const READING_POSE = require('../assets/ollie/notes.webp');
-const BREAK_POSE = require('../assets/ollie/thumbs.webp');
 
 export function ReaderCompanion() {
 	const t = useTheme();
@@ -41,14 +39,18 @@ export function ReaderCompanion() {
 	const showOllie = useStudyPrefs((s) => s.showOllie);
 	const setShowOllie = useStudyPrefs((s) => s.setShowOllie);
 	const [open, setOpen] = useState(false);
+	const [tapSeq, setTapSeq] = useState(0);
 
 	const idle = f.phase === 'idle';
 	const onBreak = f.phase === 'break';
 	const running = f.endsAt !== null;
 	const track = TRACKS[f.track % TRACKS.length] ?? TRACKS[0];
-	const scene = onBreak ? BREAK_SCENE : READING_SCENE;
-	const poster = onBreak ? BREAK_POSE : READING_POSE;
-	const playVideo = !reduceMotion && (running || f.musicOn || open);
+	const stageBg = t.name === 'night' ? '#121A31' : '#F6F2EA';
+
+	const pokeOllie = () => {
+		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+		setTapSeq((n) => n + 1);
+	};
 
 	const toggleTimer = () => {
 		if (running) f.pause();
@@ -103,17 +105,17 @@ export function ReaderCompanion() {
 						</Text>
 					</Press>
 
-					{/* Either compact 16:9 looping Ollie video card OR compact Music FAB */}
+					{/* Either interactive Lottie Ollie desk card (tap Ollie to wave!) OR compact Music FAB */}
 					{showOllie ? (
 						<Press
-							haptic
-							onPress={() => setOpen(true)}
+							onPress={pokeOllie}
+							onLongPress={() => setOpen(true)}
 							accessibilityRole="button"
-							accessibilityLabel="Open Focus timer and Study music"
+							accessibilityLabel="Tap Ollie to say hi, or tap Focus pill above for timer and music"
 							style={{
-								width: 144,
-								height: 84,
-								borderRadius: 15,
+								width: 112,
+								height: 98,
+								borderRadius: 16,
 								padding: 4,
 								backgroundColor: t.name === 'night' ? 'rgba(12, 18, 35, 0.92)' : t.surface,
 								borderWidth: hair,
@@ -125,23 +127,23 @@ export function ReaderCompanion() {
 								elevation: 8
 							}}
 						>
-							<View style={{ flex: 1, borderRadius: 11, overflow: 'hidden', backgroundColor: '#221a14' }}>
-								<OllieVideo source={scene} poster={poster} playing={playVideo} />
+							<View style={{ flex: 1, borderRadius: 12, overflow: 'hidden', backgroundColor: stageBg }}>
+								<OllieDesk phase={f.phase} tapSeq={tapSeq} playing={!reduceMotion && !open} />
 								{f.musicOn ? (
 									<View
 										style={{
 											position: 'absolute',
-											right: 6,
-											bottom: 6,
-											paddingHorizontal: 7,
-											paddingVertical: 2.5,
+											right: 5,
+											bottom: 5,
+											paddingHorizontal: 6,
+											paddingVertical: 2,
 											borderRadius: 999,
 											backgroundColor: 'rgba(10, 15, 30, 0.84)',
 											borderWidth: hair,
 											borderColor: alpha(t.amber, 0.36)
 										}}
 									>
-										<Text style={{ fontFamily: fonts.mono, fontSize: 9, color: t.amber }}>♫ LO-FI</Text>
+										<Text style={{ fontFamily: fonts.mono, fontSize: 8.5, color: t.amber }}>♫ LO-FI</Text>
 									</View>
 								) : null}
 							</View>
@@ -197,20 +199,24 @@ export function ReaderCompanion() {
 								elevation: 12
 							}}
 						>
-							{/* 16:9 Looping Ollie Video Player */}
-							<View
+							{/* Interactive Lottie Ollie Desk Stage (tap Ollie to wave!) */}
+							<Press
+								onPress={pokeOllie}
+								accessibilityRole="button"
+								accessibilityLabel="Tap Ollie to say hi"
 								style={{
 									width: '100%',
-									aspectRatio: 16 / 9,
-									borderRadius: 13,
+									aspectRatio: 8 / 7,
+									maxHeight: 196,
+									borderRadius: 14,
 									overflow: 'hidden',
-									backgroundColor: '#221a14',
+									backgroundColor: stageBg,
 									borderWidth: hair,
 									borderColor: t.name === 'night' ? 'rgba(255, 255, 255, 0.08)' : t.line
 								}}
 							>
-								<OllieVideo source={scene} poster={poster} playing={playVideo} />
-							</View>
+								<OllieDesk phase={f.phase} tapSeq={tapSeq} playing={!reduceMotion && open} />
+							</Press>
 
 							{/* Focus Timer Row */}
 							<View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
@@ -346,33 +352,6 @@ export function ReaderCompanion() {
 					</Animated.View>
 				</Pressable>
 			</Modal>
-		</>
-	);
-}
-
-function OllieVideo({ source, poster, playing }: { source: number; poster: number; playing: boolean }) {
-	const [hasFrame, setHasFrame] = useState(false);
-	const player = useVideoPlayer(source, (video) => {
-		video.muted = true;
-		video.loop = true;
-		video.audioMixingMode = 'mixWithOthers';
-	});
-	useEffect(() => {
-		if (playing) player.play();
-		else player.pause();
-	}, [player, playing]);
-	return (
-		<>
-			<VideoView
-				player={player}
-				style={{ width: '100%', height: '100%' }}
-				nativeControls={false}
-				contentFit="cover"
-				surfaceType="textureView"
-				playsInline
-				onFirstFrameRender={() => setHasFrame(true)}
-			/>
-			{!hasFrame ? <Image source={poster} autoplay={false} contentFit="cover" style={StyleSheet.absoluteFillObject} /> : null}
 		</>
 	);
 }

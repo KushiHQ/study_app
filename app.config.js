@@ -14,7 +14,7 @@ export default ({ config }) => ({
 	...config,
 	name: 'Kushi Study',
 	slug: 'kushi-study',
-	version: '1.2.4',
+	version: '1.2.5',
 	orientation: 'portrait',
 	icon: './assets/icon.png',
 	scheme: 'kushistudy',

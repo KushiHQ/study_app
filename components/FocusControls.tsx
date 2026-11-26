@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, StyleSheet, Text, View } from 'react-native';
+import { Linking, Text, View } from 'react-native';
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { Image } from 'expo-image';
 import { useFocusEffect } from 'expo-router';
-import { useVideoPlayer, VideoView } from 'expo-video';
 import { ChevronDown, ChevronUp, Headphones } from 'lucide-react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import { WEB_URL } from '../lib/api/client';
@@ -11,6 +9,7 @@ import { clockOf, useFocus } from '../lib/focus';
 import { useStudyPrefs } from '../lib/prefs';
 import { askForNotifications } from '../lib/services';
 import { alpha, fonts, radius, useTheme } from '../lib/theme';
+import { OllieDesk } from './OllieDesk';
 import { Button, Press, T, hair } from './ui';
 
 const TRACKS = [
@@ -24,12 +23,8 @@ const TRACKS = [
 	{ title: 'Lofi Gaming', artist: 'Marek Zielinski', file: 'lofi-gaming-606302.mp3' }
 ];
 
-const READING_SCENE = require('../assets/ollie/scene-reading.mp4');
-const BREAK_SCENE = require('../assets/ollie/scene-break.mp4');
-const READING_POSE = require('../assets/ollie/notes.webp');
-const BREAK_POSE = require('../assets/ollie/thumbs.webp');
-const FOCUS_START_CHIME = require('../assets/sounds/focus-start.wav');
-const FOCUS_END_CHIME = require('../assets/sounds/focus-end.wav');
+const FOCUS_START_CHIME = require('../assets/sounds/focus-start.mp3');
+const FOCUS_END_CHIME = require('../assets/sounds/focus-end.mp3');
 const FOCUS_PRESETS = [15, 25, 45, 60];
 
 export function FocusSession() {
@@ -101,13 +96,12 @@ export function FocusControls() {
 	const onBreak = f.phase === 'break';
 	const running = f.endsAt !== null;
 	const label = idle ? 'Focus timer' : onBreak ? (running ? 'Break' : 'Break paused') : running ? 'Focusing' : 'Focus paused';
-	const scene = running && visible && !reduceMotion ? (onBreak ? BREAK_SCENE : READING_SCENE) : null;
 	const Chevron = open ? ChevronUp : ChevronDown;
 	return (
 		<View style={{ borderTopWidth: hair, borderColor: t.line, paddingHorizontal: 20 }}>
 			<Press accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)} style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5 }}>
-				<View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={{ width: open ? 112 : 57, height: open ? 66 : 36, overflow: 'hidden', borderRadius: radius.sm, backgroundColor: onBreak ? t.signalSoft : t.accentSoft }}>
-					{scene !== null ? <OllieScene key={scene} source={scene} poster={onBreak ? BREAK_POSE : READING_POSE} /> : <OlliePoster source={onBreak ? BREAK_POSE : READING_POSE} />}
+				<View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={{ width: open ? 84 : 46, height: open ? 74 : 40, overflow: 'hidden', borderRadius: radius.sm, backgroundColor: t.name === 'night' ? '#121A31' : '#F6F2EA' }}>
+					<OllieDesk phase={f.phase} playing={visible && !reduceMotion} />
 				</View>
 				<T v="bodyStrong" style={{ flex: 1 }}>{label}</T>
 				<Text style={{ color: onBreak ? t.signal : running ? t.accent : t.fg2, fontFamily: fonts.mono, fontVariant: ['tabular-nums'] }} accessibilityRole="timer">{clockOf(f.left)}</Text>
@@ -173,27 +167,5 @@ export function FocusControls() {
 				</View>
 			) : null}
 		</View>
-	);
-}
-
-function OlliePoster({ source }: { source: number }) {
-	return <Image source={source} autoplay={false} accessible={false} contentFit="contain" style={[StyleSheet.absoluteFillObject, { margin: 2 }]} />;
-}
-
-function OllieScene({ source, poster }: { source: number; poster: number }) {
-	const [hasFrame, setHasFrame] = useState(false);
-	const player = useVideoPlayer(source, (video) => {
-		video.muted = true;
-		video.loop = true;
-		video.audioMixingMode = 'mixWithOthers';
-	});
-	useEffect(() => {
-		player.play();
-	}, [player]);
-	return (
-		<>
-			<VideoView player={player} style={{ width: '100%', height: '100%' }} nativeControls={false} contentFit="cover" surfaceType="textureView" playsInline onFirstFrameRender={() => setHasFrame(true)} />
-			{!hasFrame ? <OlliePoster source={poster} /> : null}
-		</>
 	);
 }

@@ -4,7 +4,7 @@
 // and smoothly cross-fading active step note card. Zero Android layout crash risk.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react-native';
 import { alpha, fonts, mix, radius, useTheme, type HueSet } from '../../lib/theme';
@@ -40,14 +40,20 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 			return;
 		}
 		segFill.value = 0;
-		segFill.value = withTiming(1, { duration: stepDurationMs, easing: Easing.linear });
+		const raf = requestAnimationFrame(() => {
+			segFill.value = withTiming(1, { duration: stepDurationMs, easing: Easing.linear, reduceMotion: ReduceMotion.Never });
+		});
+		return () => cancelAnimationFrame(raf);
 	}, [playing, cur, stepDurationMs, segFill]);
 
 	useEffect(() => {
-		noteOp.value = 0.25;
-		noteY.value = 6;
-		noteOp.value = withTiming(1, { duration: 240, easing: EASE_OUT });
-		noteY.value = withTiming(0, { duration: 240, easing: EASE_OUT });
+		noteOp.value = 0.35;
+		noteY.value = 4;
+		const raf = requestAnimationFrame(() => {
+			noteOp.value = withTiming(1, { duration: 160, easing: EASE_OUT, reduceMotion: ReduceMotion.Never });
+			noteY.value = withTiming(0, { duration: 160, easing: EASE_OUT, reduceMotion: ReduceMotion.Never });
+		});
+		return () => cancelAnimationFrame(raf);
 	}, [cur, noteOp, noteY]);
 
 	const segFillStyle = useAnimatedStyle(() => ({ width: `${segFill.value * 100}%` }));
@@ -171,7 +177,7 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 										}}
 									>
 										{isNow ? (
-											<Animated.View style={[{ height: 8, borderRadius: 4, backgroundColor: hue.base }, segFillStyle]} />
+											<Animated.View collapsable={false} style={[{ height: 8, borderRadius: 4, backgroundColor: hue.base }, segFillStyle]} />
 										) : null}
 									</Press>
 								);
@@ -208,6 +214,7 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 					{/* Smoothly cross-fading Active Step Note Card */}
 					{steps[shown] ? (
 						<Animated.View
+							collapsable={false}
 							style={[
 								{
 									backgroundColor: t.surface2,

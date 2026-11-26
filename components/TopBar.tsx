@@ -4,9 +4,9 @@ import type { ReactNode } from 'react';
 import { Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
-import Svg, { Path, Polygon } from 'react-native-svg';
 import { useSession } from '../lib/session';
 import { alpha, fonts, useTheme } from '../lib/theme';
+import { KushiStudyLockup } from './KushiBrand';
 import { Press, hair } from './ui';
 
 export function TopBar({
@@ -62,11 +62,7 @@ export function TopBar({
 					</Text>
 				</Press>
 			) : (
-				<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-					<KushiMark color={t.fg} amber={t.amber} />
-					<Text style={{ fontFamily: fonts.display, fontSize: 16, letterSpacing: -0.4, color: t.fg }}>Kushi</Text>
-					<Text style={{ fontFamily: fonts.bodyMedium, fontSize: 15, color: t.muted }}>Study</Text>
-				</View>
+				<KushiStudyLockup height={19} ink={t.fg} accent={t.amber} divider={t.line2} />
 			)}
 
 			<View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -93,14 +89,5 @@ export function TopBar({
 				) : null}
 			</View>
 		</View>
-	);
-}
-
-function KushiMark({ color, amber }: { color: string; amber: string }) {
-	return (
-		<Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-			<Path d="M12 4.5V12.5M12 12.5L5.2 17.8M12 12.5L18.8 17.8" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-			<Polygon points="15.5,5 20.5,5 20.5,10" fill={amber} />
-		</Svg>
 	);
 }

@@ -182,7 +182,8 @@ function Callout({ emoji, eyebrow, title, html, hue, tint, eyebrowColor }: { emo
 }
 
 const stepEase = Easing.bezier(0.16, 1, 0.3, 1);
-const stepProgressTiming = { duration: 380, easing: stepEase, reduceMotion: ReduceMotion.System };
+const stepProgressTiming = { duration: 200, easing: stepEase, reduceMotion: ReduceMotion.Never };
+const stepRevealTiming = { duration: 220, easing: stepEase, reduceMotion: ReduceMotion.Never };
 
 function StepRow({
 	index,
@@ -204,12 +205,15 @@ function StepRow({
 	const t = useTheme();
 	const ref = useRef<View>(null);
 	const opacity = useSharedValue(animate ? 0 : 1);
-	const ty = useSharedValue(animate ? 14 : 0);
+	const ty = useSharedValue(animate ? 10 : 0);
 
 	useEffect(() => {
 		if (!animate) return;
-		opacity.value = withTiming(1, { duration: 420, easing: stepEase, reduceMotion: ReduceMotion.System });
-		ty.value = withTiming(0, { duration: 420, easing: stepEase, reduceMotion: ReduceMotion.System });
+		const raf = requestAnimationFrame(() => {
+			opacity.value = withTiming(1, stepRevealTiming);
+			ty.value = withTiming(0, stepRevealTiming);
+		});
+		return () => cancelAnimationFrame(raf);
 	}, [animate, opacity, ty]);
 
 	const animStyle = useAnimatedStyle(() => ({
@@ -386,12 +390,15 @@ function Think({ prompt, answer, hue }: { prompt: string; answer: string; hue: H
 
 	useEffect(() => {
 		if (open) {
-			pop.value = 0.6;
-			pop.value = withSpring(1, { damping: 10, stiffness: 200 });
+			pop.value = 0.85;
 			ansOp.value = 0;
-			ansY.value = 10;
-			ansOp.value = withTiming(1, { duration: 360, easing: stepEase });
-			ansY.value = withTiming(0, { duration: 360, easing: stepEase });
+			ansY.value = 6;
+			const raf = requestAnimationFrame(() => {
+				pop.value = withSpring(1, { damping: 24, stiffness: 320, mass: 0.8, reduceMotion: ReduceMotion.Never });
+				ansOp.value = withTiming(1, { duration: 200, easing: stepEase, reduceMotion: ReduceMotion.Never });
+				ansY.value = withTiming(0, { duration: 200, easing: stepEase, reduceMotion: ReduceMotion.Never });
+			});
+			return () => cancelAnimationFrame(raf);
 		}
 	}, [open, pop, ansOp, ansY]);
 
@@ -401,7 +408,7 @@ function Think({ prompt, answer, hue }: { prompt: string; answer: string; hue: H
 	return (
 		<Box hue={hue}>
 			<View style={{ flexDirection: 'row', gap: 12 }}>
-				<Animated.View style={[{ paddingTop: 2 }, emStyle]}>
+				<Animated.View collapsable={false} style={[{ paddingTop: 2 }, emStyle]}>
 					<KushiEmoji name={open ? 'bulb' : 'think'} size={27} />
 				</Animated.View>
 				<View style={{ flex: 1, gap: 6 }}>

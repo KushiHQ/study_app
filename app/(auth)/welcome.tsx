@@ -5,12 +5,13 @@ import { Image } from 'expo-image';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Mail } from 'lucide-react-native';
-import Svg, { Defs, LinearGradient, Path, Polygon, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { appleAvailable, googleAvailable, signInWithApple, signInWithGoogle } from '../../lib/auth';
 import { errorText } from '../../lib/api/client';
 import { fonts, useTheme } from '../../lib/theme';
 import { Button, ErrorBox, Press, T } from '../../components/ui';
 import { GoogleG } from '../../components/GoogleG';
+import { KushiStudyLockup } from '../../components/KushiBrand';
 
 export default function Welcome() {
 	const t = useTheme();
@@ -80,14 +81,9 @@ export default function Welcome() {
 					justifyContent: 'space-between'
 				}}
 			>
-				{/* Minimal Brand Mark at Top */}
-				<View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-					<Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-						<Path d="M12 4.5V12.5M12 12.5L5.2 17.8M12 12.5L18.8 17.8" stroke="#F8FAFC" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-						<Polygon points="15.5,5 20.5,5 20.5,10" fill={t.amber} />
-					</Svg>
-					<Text style={{ fontFamily: fonts.display, fontSize: 17, letterSpacing: -0.5, color: '#F8FAFC' }}>Kushi</Text>
-					<Text style={{ fontFamily: fonts.bodyMedium, fontSize: 16, color: '#CBD5E1' }}>Study</Text>
+				{/* Official Kushi Study Brand Lockup at Top */}
+				<View style={{ alignItems: 'center', justifyContent: 'center' }}>
+					<KushiStudyLockup height={20} ink="#F8FAFC" accent={t.amber} divider="rgba(248, 250, 252, 0.28)" subColor="#E2E8F0" />
 				</View>
 
 				{/* Bottom Dock: Punchy Headline + Clean Sign-In Actions */}

@@ -5,7 +5,7 @@
 // (zero exiting=, zero layout=LinearTransition, zero zIndex) for 100% Android stability.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle, Defs, G, Line, Marker, Path, Rect, Text as SText } from 'react-native-svg';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react-native';
@@ -22,6 +22,8 @@ import { Eye } from './Blocks';
 const SPEEDS: AnimSpeed[] = [1, 1.5, 0.75];
 const ID_HUES: Hue[] = ['sky', 'peach', 'lilac', 'rose'];
 const EASE_OUT = Easing.bezier(0.22, 1, 0.36, 1);
+const CRISP_SPRING = { damping: 28, stiffness: 340, mass: 0.8, reduceMotion: ReduceMotion.Never } as const;
+const FAST_FADE = { duration: 160, easing: EASE_OUT, reduceMotion: ReduceMotion.Never } as const;
 
 const words = (st: TraceState) => (st.title + ' ' + st.html.replace(/<[^>]+>/g, ' ')).trim().split(/\s+/).filter(Boolean).length;
 const dur = (st: TraceState) => Math.max(1800, Math.min(11000, 900 + 235 * words(st)));
@@ -72,10 +74,13 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 	const narOp = useSharedValue(1);
 	const narY = useSharedValue(0);
 	useEffect(() => {
-		narOp.value = 0.25;
-		narY.value = 6;
-		narOp.value = withTiming(1, { duration: 240, easing: EASE_OUT });
-		narY.value = withTiming(0, { duration: 240, easing: EASE_OUT });
+		narOp.value = 0.35;
+		narY.value = 4;
+		const raf = requestAnimationFrame(() => {
+			narOp.value = withTiming(1, FAST_FADE);
+			narY.value = withTiming(0, FAST_FADE);
+		});
+		return () => cancelAnimationFrame(raf);
 	}, [cur, narOp, narY]);
 	const narStyle = useAnimatedStyle(() => ({
 		opacity: narOp.value,
@@ -90,11 +95,16 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 			return;
 		}
 		segFill.value = 0;
-		segFill.value = withTiming(1, { duration: stepDurationMs, easing: Easing.linear });
+		const raf = requestAnimationFrame(() => {
+			segFill.value = withTiming(1, { duration: stepDurationMs, easing: Easing.linear, reduceMotion: ReduceMotion.Never });
+		});
+		return () => cancelAnimationFrame(raf);
 	}, [playing, cur, stepDurationMs, segFill]);
 	const segFillStyle = useAnimatedStyle(() => ({
 		width: `${segFill.value * 100}%`
 	}));
+
+	const maxStackLen = useMemo(() => Math.max(3, ...states.map((st) => st.v.length)), [states]);
 
 	useEffect(() => {
 		if (!autoplay || interacted.current || !states.length) return;
@@ -127,7 +137,6 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 	const graphWidth = Math.max(1, width - 28 - 2 * hair);
 	const hasSideCode = kind !== 'code' && Boolean(block.code || block.html);
 	const outLabel = block.outLabel ?? (kind === 'graph' || kind === 'tree' ? 'Visited' : kind === 'queue' ? 'Served' : 'Output');
-	const maxStackLen = useMemo(() => Math.max(3, ...states.map((st) => st.v.length)), [states]);
 
 	return (
 		<View
@@ -236,7 +245,7 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 			) : null}
 
 			{/* Narration Bubble Card (directly under the stage, matching web) */}
-			<Animated.View style={[{ backgroundColor: hue.wash, borderRadius: 14, padding: 12, gap: 3, borderLeftWidth: 3, borderLeftColor: hue.base }, narStyle]}>
+			<Animated.View collapsable={false} style={[{ backgroundColor: hue.wash, borderRadius: 14, padding: 12, gap: 3, borderLeftWidth: 3, borderLeftColor: hue.base }, narStyle]}>
 				<Html html={s.title} hue={hue} style={{ fontFamily: fonts.readHeavy, fontSize: 15 }} />
 				{s.html ? <Html html={s.html} hue={hue} style={{ fontSize: 14.5, lineHeight: 22 }} /> : null}
 			</Animated.View>
@@ -288,7 +297,7 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 								}}
 							>
 								{isNow ? (
-									<Animated.View style={[{ height: 8, borderRadius: 4, backgroundColor: hue.base }, segFillStyle]} />
+									<Animated.View collapsable={false} style={[{ height: 8, borderRadius: 4, backgroundColor: hue.base }, segFillStyle]} />
 								) : null}
 							</Press>
 						);
@@ -384,14 +393,17 @@ function SlidingCell({
 	isQueue: boolean;
 	compact?: boolean;
 }) {
-	const x = useSharedValue(isQueue ? index * stepWidth + 52 : index * stepWidth);
+	const x = useSharedValue(isQueue ? index * stepWidth + 44 : index * stepWidth);
 	const op = useSharedValue(0);
-	const sc = useSharedValue(c.hot ? 1.07 : 1);
+	const sc = useSharedValue(c.hot ? 1.04 : 1);
 
 	useEffect(() => {
-		op.value = withTiming(c.dim ? 0.45 : 1, { duration: 240 });
-		x.value = withSpring(index * stepWidth, { damping: 16, stiffness: 170 });
-		sc.value = withSpring(c.hot ? 1.06 : 1, { damping: 14, stiffness: 200 });
+		const raf = requestAnimationFrame(() => {
+			op.value = withTiming(c.dim ? 0.45 : 1, FAST_FADE);
+			x.value = withSpring(index * stepWidth, CRISP_SPRING);
+			sc.value = withSpring(c.hot ? 1.04 : 1, CRISP_SPRING);
+		});
+		return () => cancelAnimationFrame(raf);
 	}, [index, stepWidth, c.dim, c.hot, x, op, sc]);
 
 	const style = useAnimatedStyle(() => ({
@@ -401,6 +413,7 @@ function SlidingCell({
 
 	return (
 		<Animated.View
+			collapsable={false}
 			style={[
 				{
 					position: 'absolute',
@@ -495,14 +508,17 @@ function StackBlock({
 	targetY: number;
 	c: ReturnType<typeof cellColors>;
 }) {
-	const y = useSharedValue(targetY - 56);
+	const y = useSharedValue(targetY - 40);
 	const op = useSharedValue(0);
-	const sc = useSharedValue(c.hot ? 1.05 : 1);
+	const sc = useSharedValue(c.hot ? 1.03 : 1);
 
 	useEffect(() => {
-		op.value = withTiming(c.dim ? 0.45 : 1, { duration: 220 });
-		y.value = withSpring(targetY, { damping: 14, stiffness: 160 });
-		sc.value = withSpring(c.hot ? 1.04 : 1, { damping: 14, stiffness: 200 });
+		const raf = requestAnimationFrame(() => {
+			op.value = withTiming(c.dim ? 0.45 : 1, FAST_FADE);
+			y.value = withSpring(targetY, CRISP_SPRING);
+			sc.value = withSpring(c.hot ? 1.03 : 1, CRISP_SPRING);
+		});
+		return () => cancelAnimationFrame(raf);
 	}, [targetY, c.dim, c.hot, y, op, sc]);
 
 	const style = useAnimatedStyle(() => ({
@@ -512,6 +528,7 @@ function StackBlock({
 
 	return (
 		<Animated.View
+			collapsable={false}
 			style={[
 				{
 					position: 'absolute',
@@ -545,7 +562,10 @@ function AnimatedStackView({ s, maxRows, hue, t, idHueMap }: { s: TraceState; ma
 	const ptrY = useSharedValue(s.v.length ? topYOf(s.v.length - 1) + 12 : wellH - 30);
 	useEffect(() => {
 		if (!s.v.length) return;
-		ptrY.value = withSpring(topYOf(s.v.length - 1) + 12, { damping: 15, stiffness: 170 });
+		const raf = requestAnimationFrame(() => {
+			ptrY.value = withSpring(topYOf(s.v.length - 1) + 12, CRISP_SPRING);
+		});
+		return () => cancelAnimationFrame(raf);
 	}, [s.v.length, wellH, ptrY]);
 	const ptrStyle = useAnimatedStyle(() => ({
 		transform: [{ translateY: ptrY.value }]
@@ -584,7 +604,7 @@ function AnimatedStackView({ s, maxRows, hue, t, idHueMap }: { s: TraceState; ma
 
 				{/* `← top` pointer smoothly gliding OUTSIDE the well on the right */}
 				{s.v.length > 0 ? (
-					<Animated.View style={[{ position: 'absolute', left: 218, top: 0 }, ptrStyle]}>
+					<Animated.View collapsable={false} style={[{ position: 'absolute', left: 218, top: 0 }, ptrStyle]}>
 						<Text style={{ fontFamily: fonts.mono, fontSize: 11.5, color: hue.ink }}>← top</Text>
 					</Animated.View>
 				) : null}

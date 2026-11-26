@@ -1,9 +1,11 @@
-// A data-structure / algorithm walk-through (matches study_web_app Trace.svelte), drawn natively.
-// Per-value identity colors (sky/peach/lilac/rose), dual array+tree heap view, directional linked-list
-// arrows, stack well + top pointer, queue front/rear pointers, input & frontier strips, live running
-// code highlight, tappable step scrubber track, and inline speed cycle pill. Zero Android layout crash risk.
+// A data-structure / algorithm walk-through (matches study_web_app Trace.svelte), drawn natively
+// with real 60fps UI-thread animations (stack spring drop-in from top, queue slide-in from right,
+// array/heap smooth value sliding on swaps, animated pointer gliding, live scrubber progress fill,
+// and narration cross-fade). Uses ONLY safe useSharedValue transform/opacity/width animations
+// (zero exiting=, zero layout=LinearTransition, zero zIndex) for 100% Android stability.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle, Defs, G, Line, Marker, Path, Rect, Text as SText } from 'react-native-svg';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react-native';
@@ -19,6 +21,7 @@ import { Eye } from './Blocks';
 
 const SPEEDS: AnimSpeed[] = [1, 1.5, 0.75];
 const ID_HUES: Hue[] = ['sky', 'peach', 'lilac', 'rose'];
+const EASE_OUT = Easing.bezier(0.22, 1, 0.36, 1);
 
 const words = (st: TraceState) => (st.title + ' ' + st.html.replace(/<[^>]+>/g, ' ')).trim().split(/\s+/).filter(Boolean).length;
 const dur = (st: TraceState) => Math.max(1800, Math.min(11000, 900 + 235 * words(st)));
@@ -49,6 +52,7 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 	const [playing, setPlaying] = useState(false);
 	const interacted = useRef(false);
 	const s = states[Math.min(cur, Math.max(0, states.length - 1))];
+	const stepDurationMs = s ? Math.round(dur(s) / animSpeed) : 2000;
 
 	// Consistent identity hue per value across all states (matching web Trace.svelte)
 	const idHueMap = useMemo(() => {
@@ -64,6 +68,34 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 		return map;
 	}, [states, block.kind]);
 
+	// Narration smooth cross-fade + micro-rise on each step
+	const narOp = useSharedValue(1);
+	const narY = useSharedValue(0);
+	useEffect(() => {
+		narOp.value = 0.25;
+		narY.value = 6;
+		narOp.value = withTiming(1, { duration: 240, easing: EASE_OUT });
+		narY.value = withTiming(0, { duration: 240, easing: EASE_OUT });
+	}, [cur, narOp, narY]);
+	const narStyle = useAnimatedStyle(() => ({
+		opacity: narOp.value,
+		transform: [{ translateY: narY.value }]
+	}));
+
+	// Active scrubber segment smooth progress fill while playing
+	const segFill = useSharedValue(0);
+	useEffect(() => {
+		if (!playing) {
+			segFill.value = 1;
+			return;
+		}
+		segFill.value = 0;
+		segFill.value = withTiming(1, { duration: stepDurationMs, easing: Easing.linear });
+	}, [playing, cur, stepDurationMs, segFill]);
+	const segFillStyle = useAnimatedStyle(() => ({
+		width: `${segFill.value * 100}%`
+	}));
+
 	useEffect(() => {
 		if (!autoplay || interacted.current || !states.length) return;
 		interacted.current = true;
@@ -73,9 +105,9 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 	useEffect(() => {
 		if (!playing || !s) return;
 		if (cur >= states.length - 1) return setPlaying(false);
-		const id = setTimeout(() => setCur((c) => c + 1), Math.round(dur(s) / animSpeed));
+		const id = setTimeout(() => setCur((c) => c + 1), stepDurationMs);
 		return () => clearTimeout(id);
-	}, [playing, cur, s, states.length, animSpeed]);
+	}, [playing, cur, s, states.length, stepDurationMs]);
 
 	if (!s) return null;
 
@@ -95,6 +127,7 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 	const graphWidth = Math.max(1, width - 28 - 2 * hair);
 	const hasSideCode = kind !== 'code' && Boolean(block.code || block.html);
 	const outLabel = block.outLabel ?? (kind === 'graph' || kind === 'tree' ? 'Visited' : kind === 'queue' ? 'Served' : 'Output');
+	const maxStackLen = useMemo(() => Math.max(3, ...states.map((st) => st.v.length)), [states]);
 
 	return (
 		<View
@@ -132,13 +165,13 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 							<View
 								key={i}
 								style={{
-									paddingHorizontal: 7,
+									paddingHorizontal: 8,
 									paddingVertical: 3,
 									borderRadius: 6,
 									backgroundColor: isNow ? hue.base : t.surface,
 									borderWidth: hair,
 									borderColor: isNow ? hue.base : t.line2,
-									opacity: isRead ? 0.45 : 1
+									opacity: isRead ? 0.42 : 1
 								}}
 							>
 								<Text style={{ fontFamily: fonts.mono, fontSize: 12, color: isNow ? t.onHue : t.fg }}>{tok}</Text>
@@ -152,16 +185,16 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 			{kind === 'heap' ? (
 				<View style={{ gap: 10 }}>
 					<Text style={{ fontFamily: fonts.mono, fontSize: 10.5, letterSpacing: 0.6, color: t.muted }}>Stored as an array</Text>
-					<Cells s={s} kind="array" hue={hue} t={t} idHueMap={idHueMap} compact />
+					<AnimatedCells s={s} kind="array" hue={hue} t={t} idHueMap={idHueMap} compact />
 					<TreeView s={s} hue={hue} t={t} width={graphWidth} idHueMap={idHueMap} />
 				</View>
 			) : null}
 			{kind === 'tree' ? <TreeView s={s} hue={hue} t={t} width={graphWidth} idHueMap={idHueMap} /> : null}
 			{kind === 'list' ? <ListView s={s} hue={hue} t={t} idHueMap={idHueMap} /> : null}
-			{kind === 'stack' ? <StackView s={s} hue={hue} t={t} idHueMap={idHueMap} /> : null}
+			{kind === 'stack' ? <AnimatedStackView s={s} maxRows={maxStackLen} hue={hue} t={t} idHueMap={idHueMap} /> : null}
 			{kind === 'graph' && block.graph ? <GraphView g={block.graph} s={s} hue={hue} t={t} width={graphWidth} /> : null}
 			{kind === 'code' ? <CodeView block={block} s={s} hue={hue} t={t} /> : null}
-			{kind === 'array' || kind === 'queue' ? <Cells s={s} kind={kind} hue={hue} t={t} vLabel={block.vLabel} idHueMap={idHueMap} /> : null}
+			{kind === 'array' || kind === 'queue' ? <AnimatedCells s={s} kind={kind} hue={hue} t={t} vLabel={block.vLabel} idHueMap={idHueMap} /> : null}
 
 			{/* Graph Frontier Strip */}
 			{kind === 'graph' ? (
@@ -202,7 +235,13 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 				</View>
 			) : null}
 
-			{/* Live running code beside/below non-code traces */}
+			{/* Narration Bubble Card (directly under the stage, matching web) */}
+			<Animated.View style={[{ backgroundColor: hue.wash, borderRadius: 14, padding: 12, gap: 3, borderLeftWidth: 3, borderLeftColor: hue.base }, narStyle]}>
+				<Html html={s.title} hue={hue} style={{ fontFamily: fonts.readHeavy, fontSize: 15 }} />
+				{s.html ? <Html html={s.html} hue={hue} style={{ fontSize: 14.5, lineHeight: 22 }} /> : null}
+			</Animated.View>
+
+			{/* Live running code below narration when non-code trace includes a program */}
 			{hasSideCode ? (
 				<View style={{ gap: 6 }}>
 					<Text style={{ fontFamily: fonts.mono, fontSize: 10, letterSpacing: 0.9, textTransform: 'uppercase', color: t.muted }}>The code running</Text>
@@ -210,13 +249,7 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 				</View>
 			) : null}
 
-			{/* Narration Bubble Card */}
-			<View style={{ backgroundColor: hue.wash, borderRadius: 14, padding: 12, gap: 3, borderLeftWidth: 3, borderLeftColor: hue.base }}>
-				<Html html={s.title} hue={hue} style={{ fontFamily: fonts.readHeavy, fontSize: 15 }} />
-				{s.html ? <Html html={s.html} hue={hue} style={{ fontSize: 14.5, lineHeight: 22 }} /> : null}
-			</View>
-
-			{/* Web-parity Player Controls: Play/Pause, Back, tappable scrubber, Next, count, speed */}
+			{/* Web-parity Player Controls: Play/Pause, Back, animated scrubber track, Next, count, speed */}
 			<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
 				<Round
 					onPress={() => {
@@ -236,21 +269,30 @@ export function Trace({ block, hue, width, autoplay }: { block: TraceBlock; hue:
 				</Round>
 
 				<View style={{ flex: 1, flexDirection: 'row', gap: 3, alignItems: 'center' }}>
-					{states.map((st, i) => (
-						<Press
-							key={i}
-							onPress={() => go(i)}
-							hitSlop={{ top: 12, bottom: 12, left: 1, right: 1 }}
-							accessibilityRole="button"
-							accessibilityLabel={`Step ${i + 1}: ${st.title}`}
-							style={{
-								flex: 1,
-								height: 8,
-								borderRadius: 4,
-								backgroundColor: i === cur ? hue.base : i < cur ? alpha(hue.base, 0.5) : t.line2
-							}}
-						/>
-					))}
+					{states.map((st, i) => {
+						const isNow = i === cur;
+						const isDone = i < cur;
+						return (
+							<Press
+								key={i}
+								onPress={() => go(i)}
+								hitSlop={{ top: 12, bottom: 12, left: 1, right: 1 }}
+								accessibilityRole="button"
+								accessibilityLabel={`Step ${i + 1}: ${st.title}`}
+								style={{
+									flex: 1,
+									height: 8,
+									borderRadius: 4,
+									overflow: 'hidden',
+									backgroundColor: isDone ? alpha(hue.base, 0.5) : t.line2
+								}}
+							>
+								{isNow ? (
+									<Animated.View style={[{ height: 8, borderRadius: 4, backgroundColor: hue.base }, segFillStyle]} />
+								) : null}
+							</Press>
+						);
+					})}
 				</View>
 
 				<Round onPress={() => go(cur + 1)} disabled={cur >= states.length - 1} label="Next" t={t}>
@@ -314,57 +356,240 @@ function Round({ children, onPress, disabled, label, t, fill }: { children: Reac
 }
 
 function cellColors(i: number, s: TraceState, hue: HueSet, t: Palette, idHue?: Hue) {
-	if (s.hot?.includes(i)) return { bg: hue.base, fg: t.onHue, border: hue.base, dim: false };
-	if (s.done?.includes(i)) return { bg: t.successSoft, fg: t.success, border: t.success, dim: false };
-	if (s.dim?.includes(i)) return { bg: t.surface2, fg: t.muted, border: t.line, dim: true };
+	if (s.hot?.includes(i)) return { bg: hue.base, fg: t.onHue, border: hue.base, dim: false, hot: true };
+	if (s.done?.includes(i)) return { bg: t.successSoft, fg: t.success, border: t.success, dim: false, hot: false };
+	if (s.dim?.includes(i)) return { bg: t.surface2, fg: t.muted, border: t.line, dim: true, hot: false };
 	if (idHue && t.hues[idHue]) {
 		const ih = t.hues[idHue];
-		return { bg: mix(ih.base, t.name === 'night' ? 16 : 12, t.surface), fg: ih.ink, border: alpha(ih.base, 0.7), dim: false };
+		return { bg: mix(ih.base, t.name === 'night' ? 16 : 12, t.surface), fg: ih.ink, border: alpha(ih.base, 0.7), dim: false, hot: false };
 	}
-	return { bg: t.surface, fg: t.fg, border: t.line2, dim: false };
+	return { bg: t.surface, fg: t.fg, border: t.line2, dim: false, hot: false };
 }
 
-function Cells({ s, kind, hue, t, vLabel, idHueMap, compact }: { s: TraceState; kind: string; hue: HueSet; t: Palette; vLabel?: string; idHueMap: Map<string, Hue>; compact?: boolean }) {
-	const keys = useMemo(() => keyed(s.v), [s.v]);
-	const size = compact ? 38 : 46;
+/** Animated array/queue cell: smoothly glides horizontally when its index changes & springs in on mount! */
+function SlidingCell({
+	val,
+	index,
+	stepWidth,
+	cellSize,
+	c,
+	isQueue,
+	compact
+}: {
+	val: string;
+	index: number;
+	stepWidth: number;
+	cellSize: number;
+	c: ReturnType<typeof cellColors>;
+	isQueue: boolean;
+	compact?: boolean;
+}) {
+	const x = useSharedValue(isQueue ? index * stepWidth + 52 : index * stepWidth);
+	const op = useSharedValue(0);
+	const sc = useSharedValue(c.hot ? 1.07 : 1);
+
+	useEffect(() => {
+		op.value = withTiming(c.dim ? 0.45 : 1, { duration: 240 });
+		x.value = withSpring(index * stepWidth, { damping: 16, stiffness: 170 });
+		sc.value = withSpring(c.hot ? 1.06 : 1, { damping: 14, stiffness: 200 });
+	}, [index, stepWidth, c.dim, c.hot, x, op, sc]);
+
+	const style = useAnimatedStyle(() => ({
+		opacity: op.value,
+		transform: [{ translateX: x.value }, { scale: sc.value }]
+	}));
+
 	return (
-		<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 4 }}>
-			<View style={{ flexDirection: 'row', gap: compact ? 5 : 7, alignItems: 'flex-start', minWidth: '100%' }}>
-				{s.v.map((v, i) => {
-					const empty = v === '_';
-					const c = cellColors(i, s, hue, t, empty ? undefined : idHueMap.get(keys[i]));
-					const ptrs = (s.ptr ?? []).filter((p) => p.at === i);
-					const isFront = kind === 'queue' && i === 0;
-					const isRear = kind === 'queue' && i === s.v.length - 1;
-					return (
-						<View key={`${keys[i]}-${i}`} style={{ alignItems: 'center', gap: 4, opacity: c.dim ? 0.45 : 1 }}>
-							<View
-								style={{
-									minWidth: size,
-									height: size,
-									paddingHorizontal: 8,
-									borderRadius: 10,
-									borderWidth: 1.5,
-									borderStyle: empty ? 'dashed' : 'solid',
-									borderColor: empty ? t.line2 : c.border,
-									backgroundColor: empty ? 'transparent' : c.bg,
-									alignItems: 'center',
-									justifyContent: 'center'
-								}}
-							>
-								<Text style={{ fontFamily: fonts.mono, fontSize: compact ? 13 : 15, color: c.fg }}>{empty ? '' : v}</Text>
-							</View>
+		<Animated.View
+			style={[
+				{
+					position: 'absolute',
+					left: 0,
+					top: 0,
+					width: cellSize,
+					height: cellSize,
+					borderRadius: 10,
+					borderWidth: 1.6,
+					borderColor: c.border,
+					backgroundColor: c.bg,
+					alignItems: 'center',
+					justifyContent: 'center'
+				},
+				style
+			]}
+		>
+			<Text numberOfLines={1} style={{ fontFamily: fonts.mono, fontSize: compact ? 13 : 15, color: c.fg }}>
+				{val}
+			</Text>
+		</Animated.View>
+	);
+}
+
+function AnimatedCells({ s, kind, hue, t, vLabel, idHueMap, compact }: { s: TraceState; kind: string; hue: HueSet; t: Palette; vLabel?: string; idHueMap: Map<string, Hue>; compact?: boolean }) {
+	const keys = useMemo(() => keyed(s.v), [s.v]);
+	const cellSize = compact ? 40 : 48;
+	const gap = compact ? 6 : 8;
+	const stepW = cellSize + gap;
+	const totalW = Math.max(120, s.v.length * stepW - gap);
+	const hasPtrs = (s.ptr?.length ?? 0) > 0 || kind === 'queue';
+
+	return (
+		<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 6, paddingHorizontal: 4 }}>
+			<View style={{ gap: 6 }}>
+				<View style={{ width: totalW, height: cellSize + 18 + (hasPtrs ? 20 : 0), position: 'relative' }}>
+					{/* Dashed background slots + indices */}
+					{s.v.map((_, i) => (
+						<View key={`slot-${i}`} style={{ position: 'absolute', left: i * stepW, top: 0, width: cellSize, alignItems: 'center', gap: 4 }}>
+							<View style={{ width: cellSize, height: cellSize, borderRadius: 10, borderWidth: 1.2, borderStyle: 'dashed', borderColor: t.line }} />
 							<Text style={{ fontFamily: fonts.mono, fontSize: 10, color: t.muted }}>{i}</Text>
-							{isFront ? <Text style={{ fontFamily: fonts.mono, fontSize: 10, color: hue.ink }}>front</Text> : null}
-							{isRear ? <Text style={{ fontFamily: fonts.mono, fontSize: 10, color: hue.ink }}>rear</Text> : null}
-							{ptrs.length ? <Text style={{ fontFamily: fonts.mono, fontSize: 10.5, color: hue.ink }}>↑ {ptrs.map((p) => p.name).join(' ')}</Text> : null}
 						</View>
-					);
-				})}
+					))}
+
+					{/* Animated value cells keyed by stable identity (so swaps literally slide!) */}
+					{s.v.map((v, i) => {
+						if (v === '_') return null;
+						const id = keys[i];
+						const c = cellColors(i, s, hue, t, idHueMap.get(id));
+						return <SlidingCell key={id} val={v} index={i} stepWidth={stepW} cellSize={cellSize} c={c} isQueue={kind === 'queue'} compact={compact} />;
+					})}
+
+					{/* Queue front / rear & named pointers */}
+					{kind === 'queue' && s.v.length > 0 ? (
+						<>
+							<Text style={{ position: 'absolute', left: 0, top: cellSize + 18, width: cellSize, textAlign: 'center', fontFamily: fonts.mono, fontSize: 10, color: hue.ink }}>front</Text>
+							<Text style={{ position: 'absolute', left: (s.v.length - 1) * stepW, top: cellSize + 18, width: cellSize, textAlign: 'center', fontFamily: fonts.mono, fontSize: 10, color: hue.ink }}>rear</Text>
+						</>
+					) : null}
+					{(s.ptr ?? []).map((p) => (
+						<Text
+							key={p.name}
+							style={{
+								position: 'absolute',
+								left: p.at * stepW - 10,
+								top: cellSize + 18,
+								width: cellSize + 20,
+								textAlign: 'center',
+								fontFamily: fonts.mono,
+								fontSize: 10.5,
+								color: hue.ink
+							}}
+						>
+							↑ {p.name}
+						</Text>
+					))}
+				</View>
 				{s.v.length === 0 ? <T v="small">(empty)</T> : null}
+				{vLabel ? <T v="micro">{vLabel}</T> : null}
 			</View>
-			{vLabel ? <T v="micro">{vLabel}</T> : null}
 		</ScrollView>
+	);
+}
+
+/** Animated stack item: drops cleanly from above the U-well with spring bounce! */
+function StackBlock({
+	val,
+	targetY,
+	c
+}: {
+	val: string;
+	targetY: number;
+	c: ReturnType<typeof cellColors>;
+}) {
+	const y = useSharedValue(targetY - 56);
+	const op = useSharedValue(0);
+	const sc = useSharedValue(c.hot ? 1.05 : 1);
+
+	useEffect(() => {
+		op.value = withTiming(c.dim ? 0.45 : 1, { duration: 220 });
+		y.value = withSpring(targetY, { damping: 14, stiffness: 160 });
+		sc.value = withSpring(c.hot ? 1.04 : 1, { damping: 14, stiffness: 200 });
+	}, [targetY, c.dim, c.hot, y, op, sc]);
+
+	const style = useAnimatedStyle(() => ({
+		opacity: op.value,
+		transform: [{ translateY: y.value }, { scale: sc.value }]
+	}));
+
+	return (
+		<Animated.View
+			style={[
+				{
+					position: 'absolute',
+					left: 10,
+					top: 0,
+					width: 140,
+					height: 42,
+					borderRadius: 9,
+					borderWidth: 1.6,
+					borderColor: c.border,
+					backgroundColor: c.bg,
+					alignItems: 'center',
+					justifyContent: 'center'
+				},
+				style
+			]}
+		>
+			<Text style={{ fontFamily: fonts.mono, fontSize: 15, color: c.fg }}>{val}</Text>
+		</Animated.View>
+	);
+}
+
+/** Matches web Trace.svelte stack: uniform 140px boxes inside a 160px U-well, with `← top` gliding OUTSIDE on the right! */
+function AnimatedStackView({ s, maxRows, hue, t, idHueMap }: { s: TraceState; maxRows: number; hue: HueSet; t: Palette; idHueMap: Map<string, Hue> }) {
+	const keys = useMemo(() => keyed(s.v), [s.v]);
+	const CH = 42;
+	const GAP = 6;
+	const wellH = maxRows * (CH + GAP) + 18;
+	const topYOf = (i: number) => wellH - 10 - CH - i * (CH + GAP);
+
+	const ptrY = useSharedValue(s.v.length ? topYOf(s.v.length - 1) + 12 : wellH - 30);
+	useEffect(() => {
+		if (!s.v.length) return;
+		ptrY.value = withSpring(topYOf(s.v.length - 1) + 12, { damping: 15, stiffness: 170 });
+	}, [s.v.length, wellH, ptrY]);
+	const ptrStyle = useAnimatedStyle(() => ({
+		transform: [{ translateY: ptrY.value }]
+	}));
+
+	return (
+		<View style={{ alignItems: 'center', paddingVertical: 8 }}>
+			<View style={{ width: 260, height: wellH, position: 'relative' }}>
+				{/* U-shaped Stack Well (centered) */}
+				<View
+					style={{
+						position: 'absolute',
+						left: 50,
+						top: 0,
+						width: 160,
+						height: wellH,
+						borderLeftWidth: 2,
+						borderRightWidth: 2,
+						borderBottomWidth: 2,
+						borderBottomLeftRadius: 12,
+						borderBottomRightRadius: 12,
+						borderColor: t.line2
+					}}
+				>
+					{s.v.length === 0 ? (
+						<Text style={{ position: 'absolute', bottom: 18, left: 0, right: 0, textAlign: 'center', fontFamily: fonts.mono, fontSize: 12, color: t.muted }}>
+							empty
+						</Text>
+					) : null}
+					{s.v.map((v, i) => {
+						const id = keys[i];
+						const c = cellColors(i, s, hue, t, idHueMap.get(id));
+						return <StackBlock key={id} val={v} targetY={topYOf(i)} c={c} />;
+					})}
+				</View>
+
+				{/* `← top` pointer smoothly gliding OUTSIDE the well on the right */}
+				{s.v.length > 0 ? (
+					<Animated.View style={[{ position: 'absolute', left: 218, top: 0 }, ptrStyle]}>
+						<Text style={{ fontFamily: fonts.mono, fontSize: 11.5, color: hue.ink }}>← top</Text>
+					</Animated.View>
+				) : null}
+			</View>
+		</View>
 	);
 }
 
@@ -432,59 +657,6 @@ function ListView({ s, hue, t, idHueMap }: { s: TraceState; hue: HueSet; t: Pale
 				})}
 			</Svg>
 		</ScrollView>
-	);
-}
-
-function StackView({ s, hue, t, idHueMap }: { s: TraceState; hue: HueSet; t: Palette; idHueMap: Map<string, Hue> }) {
-	const keys = useMemo(() => keyed(s.v), [s.v]);
-	const items = s.v.map((v, i) => ({ v, i, key: keys[i] })).reverse();
-	return (
-		<View style={{ alignItems: 'center', paddingVertical: 6 }}>
-			<View
-				style={{
-					width: 170,
-					minHeight: 112,
-					padding: 10,
-					gap: 6,
-					borderLeftWidth: 2,
-					borderRightWidth: 2,
-					borderBottomWidth: 2,
-					borderBottomLeftRadius: 12,
-					borderBottomRightRadius: 12,
-					borderColor: t.line2,
-					justifyContent: 'flex-end'
-				}}
-			>
-				{items.length ? (
-					items.map(({ v, i, key }, idx) => {
-						const c = cellColors(i, s, hue, t, idHueMap.get(key));
-						const isTop = idx === 0;
-						return (
-							<View key={`${key}-${i}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-								<View
-									style={{
-										flex: 1,
-										height: 40,
-										borderRadius: 9,
-										borderWidth: 1.5,
-										borderColor: c.border,
-										backgroundColor: c.bg,
-										alignItems: 'center',
-										justifyContent: 'center',
-										opacity: c.dim ? 0.45 : 1
-									}}
-								>
-									<Text style={{ fontFamily: fonts.mono, fontSize: 14, color: c.fg }}>{v}</Text>
-								</View>
-								{isTop ? <Text style={{ fontFamily: fonts.mono, fontSize: 10.5, color: hue.ink }}>← top</Text> : null}
-							</View>
-						);
-					})
-				) : (
-					<Text style={{ fontFamily: fonts.mono, fontSize: 12, color: t.muted, textAlign: 'center', paddingVertical: 18 }}>empty</Text>
-				)}
-			</View>
-		</View>
 	);
 }
 
@@ -605,7 +777,7 @@ function CodeView({ block, s, hue, t, compact }: { block: TraceBlock; s: TraceSt
 								key={i}
 								style={{
 									flexDirection: 'row',
-									backgroundColor: active ? alpha(hue.base, 0.2) : 'transparent',
+									backgroundColor: active ? alpha(hue.base, 0.22) : 'transparent',
 									borderLeftWidth: 3,
 									borderLeftColor: active ? hue.base : 'transparent',
 									paddingHorizontal: 10

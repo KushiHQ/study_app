@@ -1,10 +1,10 @@
 // One lesson block → one native view (study_web_app src/lib/ui/blocks/Blocks.svelte).
-import { memo, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Platform, ScrollView, Text, View } from 'react-native';
-import Animated, { Easing, FadeInDown, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ScrollView, Text, View } from 'react-native';
+import Animated, { Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { Copy, Check, Quote, ChevronRight, RotateCcw, Puzzle } from 'lucide-react-native';
+import { Copy, Check, Quote, ChevronRight, RotateCcw, Puzzle, Eye as EyeIcon } from 'lucide-react-native';
 import type { Block } from '../../lib/api/types';
 import { parse } from '../../lib/html';
 import { highlightCode } from '../../lib/highlight';
@@ -182,21 +182,70 @@ function Callout({ emoji, eyebrow, title, html, hue, tint, eyebrowColor }: { emo
 }
 
 const stepEase = Easing.bezier(0.16, 1, 0.3, 1);
-const stepEntrance = FadeInDown.duration(550).easing(stepEase)
-	.withInitialValues({ opacity: 0, transform: [{ translateY: 14 }] })
-	.reduceMotion(ReduceMotion.System);
-const stepProgressTiming = { duration: 400, easing: stepEase, reduceMotion: ReduceMotion.System };
+const stepProgressTiming = { duration: 380, easing: stepEase, reduceMotion: ReduceMotion.System };
+
+function StepRow({
+	index,
+	title,
+	html,
+	hue,
+	animate,
+	isLast,
+	onNewestLayout
+}: {
+	index: number;
+	title: string;
+	html: string;
+	hue: HueSet;
+	animate: boolean;
+	isLast: boolean;
+	onNewestLayout?: (view: View) => void;
+}) {
+	const t = useTheme();
+	const ref = useRef<View>(null);
+	const opacity = useSharedValue(animate ? 0 : 1);
+	const ty = useSharedValue(animate ? 14 : 0);
+
+	useEffect(() => {
+		if (!animate) return;
+		opacity.value = withTiming(1, { duration: 420, easing: stepEase, reduceMotion: ReduceMotion.System });
+		ty.value = withTiming(0, { duration: 420, easing: stepEase, reduceMotion: ReduceMotion.System });
+	}, [animate, opacity, ty]);
+
+	const animStyle = useAnimatedStyle(() => ({
+		opacity: opacity.value,
+		transform: [{ translateY: ty.value }]
+	}));
+
+	return (
+		<Animated.View
+			ref={ref}
+			collapsable={false}
+			onLayout={isLast && onNewestLayout ? () => ref.current && onNewestLayout(ref.current) : undefined}
+			style={[{ flexDirection: 'row', gap: 12, paddingVertical: 14, borderTopWidth: hair, borderStyle: 'dashed', borderColor: t.line }, animStyle]}
+		>
+			<View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: hue.base, alignItems: 'center', justifyContent: 'center' }}>
+				<Text style={{ fontFamily: fonts.readHeavy, fontSize: 13, color: t.onHue }}>{index + 1}</Text>
+			</View>
+			<View style={{ flex: 1, gap: 4 }}>
+				<Html html={title} hue={hue} style={{ fontFamily: fonts.readHeavy, fontSize: 16 }} />
+				<Html html={html} hue={hue} style={{ fontSize: 16, lineHeight: 25 }} />
+			</View>
+		</Animated.View>
+	);
+}
 
 function Steps({ title, intro, steps, hue, onStepReveal }: { title: string; intro?: string; steps: { title: string; html: string }[]; hue: HueSet; onStepReveal?: RevealStep }) {
 	const t = useTheme();
 	const [shown, setShown] = useState(1);
 	const pendingScroll = useRef<number | null>(null);
-	const newestStep = useRef<View>(null);
 	const all = shown >= steps.length;
 	return (
 		<Box hue={hue}>
-			<View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-				<KushiEmoji name="write" size={24} />
+			<View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+				<View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: hue.soft, alignItems: 'center', justifyContent: 'center' }}>
+					<KushiEmoji name="write" size={21} />
+				</View>
 				<View style={{ flex: 1 }}>
 					<Eye hue={hue}>Worked example</Eye>
 					<Html html={title} hue={hue} style={{ fontFamily: fonts.serif, fontSize: 18, lineHeight: 24 }} />
@@ -204,35 +253,22 @@ function Steps({ title, intro, steps, hue, onStepReveal }: { title: string; intr
 			</View>
 			{intro ? <Html html={intro} hue={hue} style={{ fontSize: 16, lineHeight: 25 }} /> : null}
 			<View>
-				{steps.slice(0, shown).map((s, i) => {
-					const StepBox = Platform.OS === 'android' ? View : Animated.View;
-					return (
-						<StepBox
-							key={i}
-							{...(Platform.OS === 'android' ? {} : { entering: stepEntrance })}
-							style={{ flexDirection: 'row', gap: 12, paddingVertical: 14, borderTopWidth: hair, borderStyle: 'dashed', borderColor: t.line }}
-							ref={i === shown - 1 ? newestStep : undefined}
-							collapsable={false}
-							onLayout={
-								i === shown - 1
-									? () => {
-											if (pendingScroll.current !== i || !newestStep.current) return;
-											pendingScroll.current = null;
-											onStepReveal?.(newestStep.current);
-										}
-									: undefined
-							}
-						>
-							<View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: hue.base, alignItems: 'center', justifyContent: 'center' }}>
-								<Text style={{ fontFamily: fonts.readHeavy, fontSize: 13, color: t.onHue }}>{i + 1}</Text>
-							</View>
-							<View style={{ flex: 1, gap: 4 }}>
-								<Html html={s.title} hue={hue} style={{ fontFamily: fonts.readHeavy, fontSize: 16 }} />
-								<Html html={s.html} hue={hue} style={{ fontSize: 16, lineHeight: 25 }} />
-							</View>
-						</StepBox>
-					);
-				})}
+				{steps.slice(0, shown).map((s, i) => (
+					<StepRow
+						key={i}
+						index={i}
+						title={s.title}
+						html={s.html}
+						hue={hue}
+						animate={i > 0}
+						isLast={i === shown - 1}
+						onNewestLayout={(v) => {
+							if (pendingScroll.current !== i) return;
+							pendingScroll.current = null;
+							onStepReveal?.(v);
+						}}
+					/>
+				))}
 			</View>
 			<View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10, paddingTop: 12, borderTopWidth: hair, borderStyle: 'dashed', borderColor: t.line }}>
 				<View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, flexGrow: 1 }}>
@@ -243,14 +279,23 @@ function Steps({ title, intro, steps, hue, onStepReveal }: { title: string; intr
 				{!all ? (
 					<>
 						<SmallBtn label="Show all" onPress={() => { pendingScroll.current = null; setShown(steps.length); }} />
-						<SmallBtn label="Next step" strong hue={hue} icon={<ChevronRight size={16} color={hue.ink} />} onPress={() => {
-							pendingScroll.current = shown;
-							setShown(shown + 1);
-						}} />
+						<SmallBtn
+							label="Next step"
+							strong
+							hue={hue}
+							icon={<ChevronRight size={16} color={hue.ink} />}
+							onPress={() => {
+								pendingScroll.current = shown;
+								setShown(shown + 1);
+							}}
+						/>
 					</>
 				) : (
 					<>
-						<T v="bodyStrong" color={hue.ink}>That’s the whole thing</T>
+						<View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+							<KushiEmoji name="sparkles" size={16} />
+							<T v="bodyStrong" color={hue.ink}>That’s the whole thing</T>
+						</View>
 						<SmallBtn label="Replay" icon={<RotateCcw size={14} color={t.fg2} />} onPress={() => { pendingScroll.current = null; setShown(1); }} />
 					</>
 				)}
@@ -335,25 +380,53 @@ function Code({ lang, code, html, caption, hue }: { lang: string; code: string; 
 function Think({ prompt, answer, hue }: { prompt: string; answer: string; hue: HueSet }) {
 	const t = useTheme();
 	const [open, setOpen] = useState(false);
+	const pop = useSharedValue(1);
+	const ansOp = useSharedValue(0);
+	const ansY = useSharedValue(10);
+
+	useEffect(() => {
+		if (open) {
+			pop.value = 0.6;
+			pop.value = withSpring(1, { damping: 10, stiffness: 200 });
+			ansOp.value = 0;
+			ansY.value = 10;
+			ansOp.value = withTiming(1, { duration: 360, easing: stepEase });
+			ansY.value = withTiming(0, { duration: 360, easing: stepEase });
+		}
+	}, [open, pop, ansOp, ansY]);
+
+	const emStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
+	const ansStyle = useAnimatedStyle(() => ({ opacity: ansOp.value, transform: [{ translateY: ansY.value }] }));
+
 	return (
 		<Box hue={hue}>
 			<View style={{ flexDirection: 'row', gap: 12 }}>
-				<View style={{ paddingTop: 2 }}>
-					<KushiEmoji name="think" size={25} />
-				</View>
+				<Animated.View style={[{ paddingTop: 2 }, emStyle]}>
+					<KushiEmoji name={open ? 'bulb' : 'think'} size={27} />
+				</Animated.View>
 				<View style={{ flex: 1, gap: 6 }}>
-					<Eye hue={hue}>Think about it</Eye>
+					<Eye hue={hue}>Pause &amp; think</Eye>
 					<Html html={prompt} hue={hue} style={{ fontSize: 16, lineHeight: 25 }} />
 				</View>
 			</View>
 			{open ? (
-				<View style={{ backgroundColor: t.surface2, borderRadius: 14, padding: 14, gap: 6, borderWidth: hair, borderColor: t.line }}>
-					<Eye hue={hue}>Explanation</Eye>
-					<Html html={answer} hue={hue} style={{ fontSize: 16, lineHeight: 25 }} />
-				</View>
+				<>
+					<Animated.View style={[{ backgroundColor: t.surface2, borderRadius: 14, padding: 14, gap: 6, borderWidth: hair, borderColor: t.line }, ansStyle]}>
+						<Html html={answer} hue={hue} style={{ fontSize: 16, lineHeight: 25 }} />
+					</Animated.View>
+					<View style={{ flexDirection: 'row' }}>
+						<SmallBtn label="Hide answer" strong hue={hue} onPress={() => setOpen(false)} />
+					</View>
+				</>
 			) : (
 				<View style={{ flexDirection: 'row' }}>
-					<SmallBtn label="Show the answer" strong hue={hue} onPress={() => setOpen(true)} />
+					<SmallBtn
+						label="I’ve had a think. Show me"
+						strong
+						hue={hue}
+						icon={<EyeIcon size={15} color={hue.ink} />}
+						onPress={() => setOpen(true)}
+					/>
 				</View>
 			)}
 		</Box>

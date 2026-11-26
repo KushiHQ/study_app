@@ -1,8 +1,10 @@
 // A lesson diagram (matches study_web_app Diagram.svelte):
 // Tap any part to inspect it; diagrams with steps get a full player with Play/Pause, Back/Next,
-// tappable segmented scrubber track, step counter, inline speed pill, and accented step note card.
+// tappable segmented scrubber track with live animated progress fill, step counter, inline speed pill,
+// and smoothly cross-fading active step note card. Zero Android layout crash risk.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react-native';
 import { alpha, fonts, mix, radius, useTheme, type HueSet } from '../../lib/theme';
@@ -13,6 +15,7 @@ import { SvgTree } from '../SvgTree';
 
 type Note = { title: string; html: string };
 const SPEEDS: AnimSpeed[] = [1, 1.5, 0.75];
+const EASE_OUT = Easing.bezier(0.22, 1, 0.36, 1);
 
 export function Diagram({ svg, caption, parts = [], steps = [], hue, width, autoplay }: { svg: string; caption: string; parts?: (Note & { id: string })[]; steps?: Note[]; hue: HueSet; width: number; autoplay?: boolean }) {
 	const t = useTheme();
@@ -25,6 +28,30 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 	const interacted = useRef(false);
 	const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 	const last = steps.length - 1;
+	const stepDurationMs = Math.round(2600 / animSpeed);
+
+	const segFill = useSharedValue(1);
+	const noteOp = useSharedValue(1);
+	const noteY = useSharedValue(0);
+
+	useEffect(() => {
+		if (!playing) {
+			segFill.value = 1;
+			return;
+		}
+		segFill.value = 0;
+		segFill.value = withTiming(1, { duration: stepDurationMs, easing: Easing.linear });
+	}, [playing, cur, stepDurationMs, segFill]);
+
+	useEffect(() => {
+		noteOp.value = 0.25;
+		noteY.value = 6;
+		noteOp.value = withTiming(1, { duration: 240, easing: EASE_OUT });
+		noteY.value = withTiming(0, { duration: 240, easing: EASE_OUT });
+	}, [cur, noteOp, noteY]);
+
+	const segFillStyle = useAnimatedStyle(() => ({ width: `${segFill.value * 100}%` }));
+	const noteStyle = useAnimatedStyle(() => ({ opacity: noteOp.value, transform: [{ translateY: noteY.value }] }));
 
 	useEffect(() => {
 		if (!autoplay || interacted.current) return;
@@ -39,9 +66,9 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 			setPlaying(false);
 			return;
 		}
-		timer.current = setTimeout(() => setCur((c) => Math.min(last, c + 1)), Math.round(2600 / animSpeed));
+		timer.current = setTimeout(() => setCur((c) => Math.min(last, c + 1)), stepDurationMs);
 		return () => clearTimeout(timer.current);
-	}, [playing, cur, last, animSpeed]);
+	}, [playing, cur, last, stepDurationMs]);
 
 	const go = (n: number) => {
 		interacted.current = true;
@@ -105,7 +132,7 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 
 			{steps.length ? (
 				<View style={{ gap: 10 }}>
-					{/* Web-parity controls: Play/Pause, Back, tappable segmented track, Next, counter, speed */}
+					{/* Web-parity controls: Play/Pause, Back, animated scrubber track, Next, counter, speed */}
 					<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
 						<Ctl
 							label={playing ? 'Pause' : 'Play'}
@@ -124,11 +151,10 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 							<ChevronLeft size={16} color={t.fg2} />
 						</Ctl>
 
-						{/* Tappable Segmented Scrubber Track */}
 						<View style={{ flex: 1, flexDirection: 'row', gap: 4, alignItems: 'center' }}>
 							{steps.map((s, i) => {
 								const isNow = i === shown && cur >= 0;
-								const isDone = i <= shown;
+								const isDone = i < shown || (cur < 0 && i <= shown);
 								return (
 									<Press
 										key={i}
@@ -140,13 +166,14 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 											flex: 1,
 											height: 8,
 											borderRadius: 4,
-											backgroundColor: isNow
-												? hue.base
-												: isDone
-													? alpha(hue.base, 0.5)
-													: t.line2
+											overflow: 'hidden',
+											backgroundColor: isDone ? alpha(hue.base, 0.5) : t.line2
 										}}
-									/>
+									>
+										{isNow ? (
+											<Animated.View style={[{ height: 8, borderRadius: 4, backgroundColor: hue.base }, segFillStyle]} />
+										) : null}
+									</Press>
 								);
 							})}
 						</View>
@@ -178,23 +205,26 @@ export function Diagram({ svg, caption, parts = [], steps = [], hue, width, auto
 						</Press>
 					</View>
 
-					{/* Always-visible Active Step Note Card (matches web .now-note) */}
+					{/* Smoothly cross-fading Active Step Note Card */}
 					{steps[shown] ? (
-						<View
-							style={{
-								backgroundColor: t.surface2,
-								borderRadius: 12,
-								padding: 12,
-								gap: 3,
-								borderLeftWidth: 3,
-								borderLeftColor: hue.base
-							}}
+						<Animated.View
+							style={[
+								{
+									backgroundColor: t.surface2,
+									borderRadius: 12,
+									padding: 12,
+									gap: 3,
+									borderLeftWidth: 3,
+									borderLeftColor: hue.base
+								},
+								noteStyle
+							]}
 						>
 							<Text style={{ fontFamily: fonts.mono, fontSize: 10.5, letterSpacing: 0.9, textTransform: 'uppercase', color: hue.ink }}>
 								Step {shown + 1} · {steps[shown].title.replace(/<[^>]+>/g, '')}
 							</Text>
 							{steps[shown].html ? <Html html={steps[shown].html} hue={hue} style={{ fontSize: 14.5, lineHeight: 22 }} /> : null}
-						</View>
+						</Animated.View>
 					) : null}
 				</View>
 			) : null}

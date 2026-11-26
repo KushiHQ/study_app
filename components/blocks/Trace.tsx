@@ -629,10 +629,10 @@ function ListView({ s, hue, t, idHueMap }: { s: TraceState; hue: HueSet; t: Pale
 		<ScrollView horizontal showsHorizontalScrollIndicator={false}>
 			<Svg width={W} height={H}>
 				<Defs>
-					<Marker id="tr-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+					<Marker id="tr-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
 						<Path d="M0,0 L10,5 L0,10 z" fill={t.line2} />
 					</Marker>
-					<Marker id="tr-arr-hot" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+					<Marker id="tr-arr-hot" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
 						<Path d="M0,0 L10,5 L0,10 z" fill={hue.base} />
 					</Marker>
 				</Defs>
@@ -734,10 +734,10 @@ function GraphView({ g, s, hue, t, width: W }: { g: NonNullable<TraceBlock['grap
 	return (
 		<Svg width={W} height={H}>
 			<Defs>
-				<Marker id="gr-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+				<Marker id="gr-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
 					<Path d="M0,0 L10,5 L0,10 z" fill={t.line2} />
 				</Marker>
-				<Marker id="gr-arr-hot" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+				<Marker id="gr-arr-hot" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
 					<Path d="M0,0 L10,5 L0,10 z" fill={hue.base} />
 				</Marker>
 			</Defs>

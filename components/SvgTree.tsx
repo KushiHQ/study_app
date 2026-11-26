@@ -102,6 +102,10 @@ function attrsFor(n: HNode, t: Palette, hue: HueSet | undefined, step: StepState
 	}
 	if (props.markerEnd) props.markerEnd = String(props.markerEnd);
 	if (props.markerStart) props.markerStart = String(props.markerStart);
+	// Android react-native-svg MarkerView calls Double.parseDouble(orient) on anything except "auto"
+	if (props.orient !== undefined && props.orient !== 'auto' && !Number.isFinite(Number(props.orient))) {
+		props.orient = 'auto';
+	}
 	let hidden = false;
 	if (step && step.last >= 0) {
 		const s = step.cur < 0 ? step.last : step.cur;
@@ -143,7 +147,7 @@ function arrowDefs(t: Palette, hue?: HueSet) {
 	const acc = hue?.base ?? t.amber;
 	const list: [string, string][] = [['dg-arrow', t.fg2], ['dg-arrow-accent', acc], ...HUE_NAMES.map((h) => [`dg-arrow-${h}`, t.hues[h].base] as [string, string])];
 	return list.map(([id, color]) => (
-		<Marker key={id} id={id} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+		<Marker key={id} id={id} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
 			<Path d="M1 1.5 L8.5 5 L1 8.5 Q2.6 5 1 1.5Z" fill={color} />
 		</Marker>
 	));

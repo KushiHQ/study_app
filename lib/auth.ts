@@ -41,7 +41,11 @@ export async function signInWithGoogle(): Promise<boolean> {
 	if (!googleAvailable) throw new Error('Google sign-in is unavailable on this build. Use email or another sign-in option.');
 	configureGoogle();
 	try {
-		if (Platform.OS === 'android') await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+		if (Platform.OS === 'android') {
+			await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+			// Clear any cached Credential Manager selection so Android always shows the account chooser.
+			await GoogleSignin.signOut().catch(() => {});
+		}
 		const r = await GoogleSignin.signIn();
 		if (r.type !== 'success' || !r.data.idToken) return false;
 		const d = await gql<{ signInWithGoogle: AuthPayload }>(
@@ -82,5 +86,8 @@ export async function signInWithApple(): Promise<boolean> {
 }
 
 export async function signOutEverywhereHere() {
-	if (Platform.OS !== 'web') await GoogleSignin.signOut().catch(() => {});
+	if (Platform.OS !== 'web') {
+		configureGoogle();
+		await GoogleSignin.signOut().catch(() => {});
+	}
 }

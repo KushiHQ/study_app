@@ -2,12 +2,17 @@
 import { useEffect, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
+import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { ArrowDown, ArrowUp, Check, Flag, X } from 'lucide-react-native';
 import type { Question } from '../lib/api/types';
+import { useStudyPrefs } from '../lib/prefs';
 import { alpha, fonts, useTheme, type HueSet } from '../lib/theme';
 import { Html } from './Html';
 import { Button, Card, Press, T, hair } from './ui';
+
+const CORRECT_SOUND = require('../assets/sounds/correct.mp3');
+const WRONG_SOUND = require('../assets/sounds/wrong.mp3');
 
 const LETTERS = 'ABCDEFGH';
 
@@ -38,6 +43,8 @@ export function QuestionCard({
 	hideWhy?: boolean;
 }) {
 	const t = useTheme();
+	const sounds = useStudyPrefs((s) => s.sounds);
+	const feedbackPlayer = useAudioPlayer(null);
 	const [picked, setPicked] = useState<number | null>(null);
 	const [chosen, setChosen] = useState<number[]>([]);
 	const [typed, setTyped] = useState('');
@@ -61,6 +68,17 @@ export function QuestionCard({
 			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 		} else {
 			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+		}
+		if (sounds) {
+			void (async () => {
+				try {
+					await setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false, interruptionMode: 'mixWithOthers' });
+					feedbackPlayer.replace(ok ? CORRECT_SOUND : WRONG_SOUND);
+					feedbackPlayer.play();
+				} catch {
+					/* audio unavailable */
+				}
+			})();
 		}
 		onAnswer?.(ok, response);
 	};

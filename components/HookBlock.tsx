@@ -36,7 +36,7 @@ export function HookBlock({ html, hue }: { html: string; hue: HueSet }) {
 			.filter(Boolean);
 		if (!paras.length) return null;
 		const first = paras[0];
-		const m = /^([A-Za-z0-9“"‘']?[A-Za-z])(.*)$/s.exec(first);
+		const m = /^([“"‘'(]?[A-Za-z0-9])(.*)$/s.exec(first);
 		if (!m) return null;
 		return {
 			drop: m[1],

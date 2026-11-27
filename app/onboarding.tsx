@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { BackHandler, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,6 +35,7 @@ export default function Onboarding() {
 	const user = useSession((s) => s.user);
 	const [step, setStep] = useState(editing ? 1 : 0);
 	const [department, setDepartment] = useState(user?.department ?? null);
+	const [pickingDept, setPickingDept] = useState(!user?.department);
 	const [level, setLevel] = useState(user?.level?.code ?? null);
 	const [course, setCourse] = useState<string | null>(null);
 	const [search, setSearch] = useState('');
@@ -54,6 +55,7 @@ export default function Onboarding() {
 	const selectedLevel = availableLevels.find((item) => item.code === level);
 
 	const moveTo = (next: number) => {
+		Keyboard.dismiss();
 		setError('');
 		setStep(next);
 	};
@@ -83,14 +85,16 @@ export default function Onboarding() {
 	};
 
 	const finish = async (slug?: string) => {
-		if (!department || !selectedLevel || saving.current) return;
+		const levelCode = selectedLevel?.code ?? level;
+		if (!department || !levelCode || saving.current) return;
+		Keyboard.dismiss();
 		saving.current = true;
 		setError('');
 		setBusy(true);
 		try {
 			const outline = slug ? await client.query<{ course: CourseOutline | null }>(COURSE, { slug, signedIn: true, preview: null }).toPromise() : null;
 			if (outline?.error && !outline.data?.course) throw outline.error;
-			const r = await gql<{ updateProfile: User }>(UPDATE_PROFILE, { departmentId: department.id, levelCode: selectedLevel.code });
+			const r = await gql<{ updateProfile: User }>(UPDATE_PROFILE, { departmentId: department.id, levelCode });
 			useSession.getState().setUser(r.updateProfile);
 			if (editing) {
 				if (router.canGoBack()) router.back();
@@ -109,11 +113,12 @@ export default function Onboarding() {
 	};
 
 	return (
-		<View style={{ flex: 1, backgroundColor: t.bg }}>
+		<KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: t.bg }}>
 			<TopGlow color={t.amber} height={280} />
 			<ScrollView
 				key={step}
 				keyboardShouldPersistTaps="handled"
+				keyboardDismissMode="on-drag"
 				contentContainerStyle={{
 					maxWidth: 560,
 					width: '100%',
@@ -227,27 +232,65 @@ export default function Onboarding() {
 							<T>We’ll match courses to your department and level.</T>
 						</Reveal>
 						<View style={{ gap: 9 }}>
-							<T v="label">Department</T>
-							{allDepartments.length > 6 ? <AccountField label="Search departments" value={search} onChangeText={setSearch} autoCorrect={false} /> : null}
-							{depts.error ? <ErrorBox message={errorText(depts.error)} onRetry={() => loadDepts({ requestPolicy: 'network-only' })} /> : null}
-							{depts.fetching && !depts.data ? <T v="small">Loading departments…</T> : null}
-							{departments.map((item) => (
+							<View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+								<T v="label">Department</T>
+								{department && !pickingDept ? (
+									<Press
+										haptic
+										hitSlop={8}
+										disabled={busy}
+										onPress={() => setPickingDept(true)}
+										accessibilityRole="button"
+										accessibilityLabel="Change department"
+									>
+										<Text style={{ fontFamily: fonts.bodySemi, fontSize: 13, color: t.accent }}>Change</Text>
+									</Press>
+								) : null}
+							</View>
+							{department && !pickingDept ? (
 								<Choice
-									key={item.id}
-									title={item.name}
-									detail={`${item.courseCount} ${item.courseCount === 1 ? 'course' : 'courses'}`}
+									title={department.name}
+									detail={`${department.courseCount} ${department.courseCount === 1 ? 'course' : 'courses'}`}
 									Icon={GraduationCap}
-									selected={department?.id === item.id}
+									selected
 									disabled={busy}
-									onPress={() => {
-										if (department?.id !== item.id) { setLevel(null); setCourse(null); }
-										setDepartment(item);
-										setSearch('');
-									}}
+									onPress={() => setPickingDept(true)}
 								/>
-							))}
-							{searchTerm && !departments.length ? <T v="small">No departments match that search.</T> : null}
-							{!editing ? <Button small kind="ghost" title="Request a course" disabled={busy} onPress={() => router.push('/request')} style={{ alignSelf: 'flex-start' }} /> : null}
+							) : (
+								<>
+									{allDepartments.length > 6 ? (
+										<AccountField
+											label="Search departments"
+											value={search}
+											onChangeText={setSearch}
+											autoCorrect={false}
+											returnKeyType="search"
+											onSubmitEditing={Keyboard.dismiss}
+										/>
+									) : null}
+									{depts.error ? <ErrorBox message={errorText(depts.error)} onRetry={() => loadDepts({ requestPolicy: 'network-only' })} /> : null}
+									{depts.fetching && !depts.data ? <T v="small">Loading departments…</T> : null}
+									{departments.map((item) => (
+										<Choice
+											key={item.id}
+											title={item.name}
+											detail={`${item.courseCount} ${item.courseCount === 1 ? 'course' : 'courses'}`}
+											Icon={GraduationCap}
+											selected={department?.id === item.id}
+											disabled={busy}
+											onPress={() => {
+												Keyboard.dismiss();
+												if (department?.id !== item.id) { setLevel(null); setCourse(null); }
+												setDepartment(item);
+												setPickingDept(false);
+												setSearch('');
+											}}
+										/>
+									))}
+									{searchTerm && !departments.length ? <T v="small">No departments match that search.</T> : null}
+									{!editing ? <Button small kind="ghost" title="Request a course" disabled={busy} onPress={() => router.push('/request')} style={{ alignSelf: 'flex-start' }} /> : null}
+								</>
+							)}
 						</View>
 						{department ? (
 							<View style={{ gap: 10 }}>
@@ -295,11 +338,11 @@ export default function Onboarding() {
 						) : null}
 					</>
 				) : null}
-				{error ? <ErrorBox message={error} /> : null}
 			</ScrollView>
 
 			<View style={{ borderTopWidth: hair, borderColor: t.line, backgroundColor: t.bg, paddingHorizontal: 22, paddingTop: 12, paddingBottom: Math.max(14, insets.bottom) }}>
 				<View style={{ width: '100%', maxWidth: 516, alignSelf: 'center', gap: 8 }}>
+					{error ? <ErrorBox message={error} /> : null}
 					{step === 0 ? <Button title="Find my courses" icon={<ArrowRight size={18} color={t.onAmber} />} onPress={() => moveTo(1)} style={{ borderRadius: 16 }} /> : null}
 					{step === 1 ? (
 						<Button
@@ -325,7 +368,7 @@ export default function Onboarding() {
 					) : null}
 				</View>
 			</View>
-		</View>
+		</KeyboardAvoidingView>
 	);
 }
 

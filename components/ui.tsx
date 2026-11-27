@@ -4,6 +4,9 @@
 import { forwardRef, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import {
 	ActivityIndicator,
+	InputAccessoryView,
+	Keyboard,
+	KeyboardAvoidingView,
 	Modal,
 	Platform,
 	Pressable,
@@ -329,8 +332,43 @@ export function InfoTip({ text, label = 'More info', size = 15 }: { text: string
 	);
 }
 
+export const KEYBOARD_DONE_ID = 'kushi-keyboard-done';
+
+/** Native iOS toolbar above the keyboard so numeric, multiline, and search inputs always have a one-tap Done button. */
+export function KeyboardDoneBar() {
+	const t = useTheme();
+	if (Platform.OS !== 'ios') return null;
+	return (
+		<InputAccessoryView nativeID={KEYBOARD_DONE_ID}>
+			<View
+				style={{
+					flexDirection: 'row',
+					justifyContent: 'flex-end',
+					alignItems: 'center',
+					paddingHorizontal: 14,
+					paddingVertical: 8,
+					backgroundColor: t.surface,
+					borderTopWidth: hair,
+					borderColor: t.line2
+				}}
+			>
+				<Press
+					haptic
+					onPress={Keyboard.dismiss}
+					hitSlop={10}
+					accessibilityRole="button"
+					accessibilityLabel="Dismiss keyboard"
+					style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: alpha(t.amber, 0.16) }}
+				>
+					<Text style={{ fontFamily: fonts.bodyBold, fontSize: 14, color: t.accent }}>Done</Text>
+				</Press>
+			</View>
+		</InputAccessoryView>
+	);
+}
+
 /** Unified recessed-luminous text input matching web .input. */
-export function FieldInput({ label, multiline, style, ...props }: TextInputProps & { label?: string }) {
+export function FieldInput({ label, multiline, style, returnKeyType, inputAccessoryViewID, ...props }: TextInputProps & { label?: string }) {
 	const t = useTheme();
 	const [focused, setFocused] = useState(false);
 	return (
@@ -339,6 +377,8 @@ export function FieldInput({ label, multiline, style, ...props }: TextInputProps
 			<TextInput
 				{...props}
 				multiline={multiline}
+				returnKeyType={returnKeyType ?? (multiline ? undefined : 'done')}
+				inputAccessoryViewID={inputAccessoryViewID ?? (Platform.OS === 'ios' ? KEYBOARD_DONE_ID : undefined)}
 				placeholderTextColor={t.muted}
 				onFocus={(e) => {
 					setFocused(true);
@@ -540,17 +580,18 @@ export function Screen({ children, scroll = true, padded = true, style, ...p }: 
 			</View>
 		);
 	return (
-		<View style={{ flex: 1, backgroundColor: t.bg }}>
+		<KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: t.bg }}>
 			<CanvasGlow />
 			<ScrollView
 				{...p}
 				style={[{ flex: 1 }, style]}
 				contentContainerStyle={[{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 24, paddingHorizontal: padded ? 18 : 0 }, p.contentContainerStyle]}
 				keyboardShouldPersistTaps="handled"
+				keyboardDismissMode="on-drag"
 			>
 				{children}
 			</ScrollView>
-		</View>
+		</KeyboardAvoidingView>
 	);
 }
 

@@ -1,6 +1,6 @@
 // Courses: every course, live search, department and level filters (Figma 02 · Courses).
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { FlatList, Keyboard, Platform, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from 'urql';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,7 +10,7 @@ import type { CourseCard as Card, Department, Level } from '../../lib/api/types'
 import { errorText } from '../../lib/api/client';
 import { useSession } from '../../lib/session';
 import { alpha, fonts, mix, radius, useTheme } from '../../lib/theme';
-import { Button, CanvasGlow, ErrorBox, Eyebrow, Press, Reveal, T, hair } from '../../components/ui';
+import { Button, CanvasGlow, ErrorBox, Eyebrow, KEYBOARD_DONE_ID, Press, Reveal, T, hair } from '../../components/ui';
 import { TopBar } from '../../components/TopBar';
 import { CourseCard } from '../../components/CourseCard';
 import { LoadingDots } from '../../components/LoadingDots';
@@ -77,6 +77,8 @@ export default function Courses() {
 					placeholderTextColor={t.muted}
 					style={{ flex: 1, fontFamily: fonts.body, fontSize: 15, color: t.fg, height: 44 }}
 					returnKeyType="search"
+					inputAccessoryViewID={Platform.OS === 'ios' ? KEYBOARD_DONE_ID : undefined}
+					onSubmitEditing={Keyboard.dismiss}
 					autoCorrect={false}
 					accessibilityLabel="Search courses"
 				/>

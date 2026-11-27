@@ -1,13 +1,13 @@
 // Email code sign-in: email → 6-digit code (10 minutes).
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { requestCode, verifyCode } from '../../lib/auth';
 import { errorText } from '../../lib/api/client';
 import { alpha, fonts, radius, useTheme } from '../../lib/theme';
-import { Button, Eyebrow, T, TopGlow, hair } from '../../components/ui';
+import { Button, Eyebrow, KEYBOARD_DONE_ID, T, TopGlow, hair } from '../../components/ui';
 import { TopBar } from '../../components/TopBar';
 
 export default function EmailSignIn() {
@@ -69,7 +69,7 @@ export default function EmailSignIn() {
 	return (
 		<KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: t.bg }}>
 			<TopGlow color={t.amber} height={260} />
-			<View style={{ flex: 1, paddingTop: insets.top + 8, paddingHorizontal: 22, paddingBottom: insets.bottom + 20, maxWidth: 520, width: '100%', alignSelf: 'center' }}>
+			<Pressable onPress={Keyboard.dismiss} accessible={false} style={{ flex: 1, paddingTop: insets.top + 8, paddingHorizontal: 22, paddingBottom: insets.bottom + 20, maxWidth: 520, width: '100%', alignSelf: 'center' }}>
 				<TopBar
 					backLabel={step === 'code' ? 'Email' : 'Welcome'}
 					onBack={() => (step === 'code' ? setStep('email') : router.back())}
@@ -95,6 +95,7 @@ export default function EmailSignIn() {
 							textContentType="emailAddress"
 							autoFocus
 							returnKeyType="send"
+							inputAccessoryViewID={Platform.OS === 'ios' ? KEYBOARD_DONE_ID : undefined}
 							onSubmitEditing={send}
 						/>
 						{error ? <T color={t.danger}>{error}</T> : null}
@@ -145,6 +146,7 @@ export default function EmailSignIn() {
 							keyboardType="number-pad"
 							textContentType="oneTimeCode"
 							autoComplete="one-time-code"
+							inputAccessoryViewID={Platform.OS === 'ios' ? KEYBOARD_DONE_ID : undefined}
 							maxLength={6}
 							style={{ position: 'absolute', opacity: 0, height: 1, width: 1 }}
 						/>
@@ -153,7 +155,7 @@ export default function EmailSignIn() {
 						<Button kind="solid" title="Send a new code" onPress={send} disabled={busy} style={{ borderRadius: 16 }} />
 					</View>
 				)}
-			</View>
+			</Pressable>
 		</KeyboardAvoidingView>
 	);
 }

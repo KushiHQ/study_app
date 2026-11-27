@@ -23,6 +23,7 @@ import { ThemeProvider, useTheme } from '../lib/theme';
 import '../lib/progress';
 import { startServices } from '../lib/services';
 import { FocusSession } from '../components/FocusControls';
+import { KeyboardDoneBar } from '../components/ui';
 
 const SENTRY_DSN =
 	process.env.EXPO_PUBLIC_SENTRY_DSN?.trim() ||
@@ -124,6 +125,7 @@ function Shell() {
 		<NavThemeProvider value={navTheme}>
 			<View style={{ flex: 1, backgroundColor: t.bg }}>
 				<StatusBar style={t.statusBar} />
+				<KeyboardDoneBar />
 				{status === 'signedIn' ? <FocusSession /> : null}
 				<Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, animation: reduceMotion ? 'none' : 'fade', animationDuration: 180 }}>
 					<Stack.Screen name="(tabs)" />

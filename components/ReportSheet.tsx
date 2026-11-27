@@ -7,7 +7,7 @@ import { gql, errorText } from '../lib/api/client';
 import { FEEDBACK } from '../lib/api/queries';
 import type { FeedbackKind } from '../lib/api/types';
 import { fonts, radius, useTheme } from '../lib/theme';
-import { Button, Chip, T, hair } from './ui';
+import { Button, Chip, KEYBOARD_DONE_ID, T, hair } from './ui';
 
 export interface ReportTarget {
 	courseSlug: string;
@@ -77,6 +77,7 @@ export function ReportSheet({ target, onClose }: { target: ReportTarget | null; 
 								placeholder="What's the problem? (a sentence is enough)"
 								placeholderTextColor={t.muted}
 								multiline
+								inputAccessoryViewID={Platform.OS === 'ios' ? KEYBOARD_DONE_ID : undefined}
 								style={{ minHeight: 90, borderRadius: 14, borderWidth: hair, borderColor: t.line2, padding: 12, fontFamily: fonts.body, fontSize: 15, color: t.fg, textAlignVertical: 'top', backgroundColor: t.bg }}
 							/>
 							{err ? <T color={t.danger}>{err}</T> : null}

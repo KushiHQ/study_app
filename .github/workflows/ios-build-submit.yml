@@ -47,10 +47,21 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Create .env file
+        run: echo '${{ secrets.ENV_FILE }}' > .env
+
+      - name: Inject RevenueCat keys into EAS production profile
+        env:
+          EXPO_PUBLIC_RC_IOS_KEY: ${{ secrets.EXPO_PUBLIC_RC_IOS_KEY }}
+          EXPO_PUBLIC_RC_ANDROID_KEY: ${{ secrets.EXPO_PUBLIC_RC_ANDROID_KEY }}
         run: |
-          echo '${{ secrets.ENV_FILE }}' > .env
-          if [ -n '${{ secrets.EXPO_PUBLIC_RC_IOS_KEY }}' ]; then echo 'EXPO_PUBLIC_RC_IOS_KEY=${{ secrets.EXPO_PUBLIC_RC_IOS_KEY }}' >> .env; fi
-          if [ -n '${{ secrets.EXPO_PUBLIC_RC_ANDROID_KEY }}' ]; then echo 'EXPO_PUBLIC_RC_ANDROID_KEY=${{ secrets.EXPO_PUBLIC_RC_ANDROID_KEY }}' >> .env; fi
+          node -e '
+            const fs = require("fs");
+            const eas = JSON.parse(fs.readFileSync("eas.json", "utf8"));
+            eas.build.production.env = eas.build.production.env || {};
+            if (process.env.EXPO_PUBLIC_RC_IOS_KEY) eas.build.production.env.EXPO_PUBLIC_RC_IOS_KEY = process.env.EXPO_PUBLIC_RC_IOS_KEY;
+            if (process.env.EXPO_PUBLIC_RC_ANDROID_KEY) eas.build.production.env.EXPO_PUBLIC_RC_ANDROID_KEY = process.env.EXPO_PUBLIC_RC_ANDROID_KEY;
+            fs.writeFileSync("eas.json", JSON.stringify(eas, null, 2) + "\n");
+          '
 
       - name: Cache CocoaPods
         uses: actions/cache@v4
